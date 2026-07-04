@@ -135,7 +135,7 @@ struct ContentView: View {
             .navigationSplitViewColumnWidth(min: 170, ideal: 190)
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack(spacing: 8) {
-                    Text("🎙️").font(.title2)
+                    Image(systemName: "waveform").font(.title3)
                     Text("EchoType").font(.title3.bold())
                     Spacer()
                 }
