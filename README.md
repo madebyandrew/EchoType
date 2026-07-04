@@ -1,4 +1,4 @@
-# FlowLocal 🎙️
+# EchoType 🎙️
 
 **Private, fully-local push-to-talk dictation for macOS.** Hold a key anywhere,
 speak, release — your words appear at the cursor in whatever app you're using.
@@ -31,27 +31,27 @@ The whole app is a single Swift file — [src/main.swift](src/main.swift).
 ## Install
 
 ```sh
-git clone https://github.com/YOURUSER/flowlocal.git
-cd flowlocal
+git clone https://github.com/YOURUSER/echotype.git
+cd echotype
 brew install whisper-cpp
 curl -L -o models/ggml-base.en.bin \
   https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
 ./build.sh
-open FlowLocal.app
+open EchoType.app
 ```
 
 ## First run — grant two permissions
 
 1. **Accessibility** — System Settings → Privacy & Security → Accessibility →
-   enable **FlowLocal**. (Needed to hear your push-to-talk key and to type
+   enable **EchoType**. (Needed to hear your push-to-talk key and to type
    text into other apps.) The menu bar icon shows **🎙️⚠️** until this is
    granted, then switches to **🎙️** — no relaunch needed.
 2. **Microphone** — prompted the first time you record.
 
 > **Note:** if you rebuild the app, macOS invalidates the Accessibility grant
-> (the ad-hoc code signature changes). Remove FlowLocal from the Accessibility
+> (the ad-hoc code signature changes). Remove EchoType from the Accessibility
 > list with **–** and re-add it with **+**, or run
-> `tccutil reset Accessibility local.flowlocal.app` and re-grant.
+> `tccutil reset Accessibility local.echotype.app` and re-grant.
 
 ## Usage
 
@@ -70,7 +70,7 @@ open FlowLocal.app
 | Insert by Pasting | Uses ⌘V instead of typing — faster for long dictations; your old clipboard is restored |
 | Remove Filler Words | Strips um/uh/hmm |
 | Sound Feedback | Pop on start, bottle on stop |
-| Open Config File | All settings live in `~/Library/Application Support/FlowLocal/config.json` |
+| Open Config File | All settings live in `~/Library/Application Support/EchoType/config.json` |
 
 ## Better accuracy (optional)
 
@@ -87,7 +87,7 @@ For languages other than English, use a multilingual model (e.g.
 
 ## Start at login (optional)
 
-System Settings → General → Login Items → add **FlowLocal.app**.
+System Settings → General → Login Items → add **EchoType.app**.
 
 ## Privacy
 

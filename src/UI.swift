@@ -1,4 +1,4 @@
-// FlowLocal — the main window: sidebar, Home, History, Styles, Dictionary, Snippets, Settings.
+// EchoType — the main window: sidebar, Home, History, Styles, Dictionary, Snippets, Settings.
 
 import SwiftUI
 
@@ -136,7 +136,7 @@ struct ContentView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack(spacing: 8) {
                     Text("🎙️").font(.title2)
-                    Text("FlowLocal").font(.title3.bold())
+                    Text("EchoType").font(.title3.bold())
                     Spacer()
                 }
                 .padding(.horizontal, 14)
@@ -643,7 +643,7 @@ struct SnippetsView: View {
     var body: some View {
         Form {
             Section {
-                Text("Say a snippet's trigger phrase on its own and FlowLocal types the full text. Example: say “meeting notes” to insert your meeting template.")
+                Text("Say a snippet's trigger phrase on its own and EchoType types the full text. Example: say “meeting notes” to insert your meeting template.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Snippets") {

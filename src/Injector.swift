@@ -1,4 +1,4 @@
-// FlowLocal — inserts transcribed text into the focused app.
+// EchoType — inserts transcribed text into the focused app.
 
 import Cocoa
 

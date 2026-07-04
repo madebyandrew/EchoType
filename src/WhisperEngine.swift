@@ -1,4 +1,4 @@
-// FlowLocal — on-device transcription engine.
+// EchoType — on-device transcription engine.
 //
 // Runs whisper-server as a child process bound to 127.0.0.1 so the model stays
 // warm in RAM between dictations (spawning whisper-cli reloads the model every
@@ -44,7 +44,7 @@ final class WhisperEngine {
         guard FileManager.default.fileExists(atPath: c.whisperServerPath),
               FileManager.default.fileExists(atPath: c.effectiveModelPath) else {
             statusText = "whisper-cli (cold start)"
-            NSLog("FlowLocal: whisper-server or model missing, will use CLI fallback")
+            NSLog("EchoType: whisper-server or model missing, will use CLI fallback")
             return
         }
         if serverProcess?.isRunning == true { return }
@@ -73,17 +73,17 @@ final class WhisperEngine {
             self.serverReady = false
             self.statusText = "whisper-cli (cold start)"
             self.lock.unlock()
-            NSLog("FlowLocal: whisper-server exited")
+            NSLog("EchoType: whisper-server exited")
         }
         do {
             try proc.run()
             serverProcess = proc
             statusText = "warming up…"
-            NSLog("FlowLocal: whisper-server starting on port \(c.serverPort)")
+            NSLog("EchoType: whisper-server starting on port \(c.serverPort)")
             DispatchQueue.global(qos: .userInitiated).async { self.waitUntilReady() }
         } catch {
             statusText = "whisper-cli (cold start)"
-            NSLog("FlowLocal: failed to launch whisper-server — \(error.localizedDescription)")
+            NSLog("EchoType: failed to launch whisper-server — \(error.localizedDescription)")
         }
     }
 
@@ -104,12 +104,12 @@ final class WhisperEngine {
                 serverReady = true
                 statusText = "whisper-server (model warm)"
                 lock.unlock()
-                NSLog("FlowLocal: whisper-server ready — model is warm")
+                NSLog("EchoType: whisper-server ready — model is warm")
                 return
             }
             Thread.sleep(forTimeInterval: 0.3)
         }
-        NSLog("FlowLocal: whisper-server never became ready; using CLI fallback")
+        NSLog("EchoType: whisper-server never became ready; using CLI fallback")
     }
 
     func shutdown() {
@@ -128,13 +128,13 @@ final class WhisperEngine {
         lock.unlock()
         if useServer {
             do { return try transcribeViaServer(wav: wav, prompt: prompt) }
-            catch { NSLog("FlowLocal: server transcription failed (\(error.localizedDescription)), falling back to CLI") }
+            catch { NSLog("EchoType: server transcription failed (\(error.localizedDescription)), falling back to CLI") }
         }
         return try transcribeViaCLI(wav: wav, prompt: prompt)
     }
 
     private func transcribeViaServer(wav: Data, prompt: String) throws -> String {
-        let boundary = "FlowLocal-\(UUID().uuidString)"
+        let boundary = "EchoType-\(UUID().uuidString)"
         var body = Data()
         func field(_ name: String, _ value: String) {
             body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
@@ -153,13 +153,13 @@ final class WhisperEngine {
         req.timeoutInterval = 120
 
         let sem = DispatchSemaphore(value: 0)
-        var result: Result<String, Error> = .failure(NSError(domain: "FlowLocal", code: 2,
+        var result: Result<String, Error> = .failure(NSError(domain: "EchoType", code: 2,
             userInfo: [NSLocalizedDescriptionKey: "No response from local whisper-server"]))
         URLSession.shared.dataTask(with: req) { data, resp, err in
             defer { sem.signal() }
             if let err = err { result = .failure(err); return }
             guard let http = resp as? HTTPURLResponse, http.statusCode == 200, let data = data else {
-                result = .failure(NSError(domain: "FlowLocal", code: 3,
+                result = .failure(NSError(domain: "EchoType", code: 3,
                     userInfo: [NSLocalizedDescriptionKey: "whisper-server HTTP \((resp as? HTTPURLResponse)?.statusCode ?? -1)"]))
                 return
             }
@@ -167,7 +167,7 @@ final class WhisperEngine {
                let text = obj["text"] as? String {
                 result = .success(text)
             } else {
-                result = .failure(NSError(domain: "FlowLocal", code: 4,
+                result = .failure(NSError(domain: "EchoType", code: 4,
                     userInfo: [NSLocalizedDescriptionKey: "Unexpected whisper-server response"]))
             }
         }.resume()
@@ -178,7 +178,7 @@ final class WhisperEngine {
     private func transcribeViaCLI(wav: Data, prompt: String) throws -> String {
         let c = cfg()
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("flowlocal-\(UUID().uuidString).wav")
+            .appendingPathComponent("echotype-\(UUID().uuidString).wav")
         try wav.write(to: url)
         defer { try? FileManager.default.removeItem(at: url) }
 
@@ -201,7 +201,7 @@ final class WhisperEngine {
         let outData = stdout.fileHandleForReading.readDataToEndOfFile()
         proc.waitUntilExit()
         guard proc.terminationStatus == 0 else {
-            throw NSError(domain: "FlowLocal", code: Int(proc.terminationStatus),
+            throw NSError(domain: "EchoType", code: Int(proc.terminationStatus),
                           userInfo: [NSLocalizedDescriptionKey: "whisper-cli exited with status \(proc.terminationStatus)"])
         }
         return String(data: outData, encoding: .utf8) ?? ""

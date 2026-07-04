@@ -1,5 +1,5 @@
 # Build output (users build locally with ./build.sh)
-FlowLocal.app/
+EchoType.app/
 
 # Whisper models are too large for git — README has the download command
 models/*.bin

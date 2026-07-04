@@ -1,4 +1,4 @@
-// FlowLocal — shared config, key maps, and transcript cleanup.
+// EchoType — shared config, key maps, and transcript cleanup.
 
 import Cocoa
 
@@ -159,7 +159,7 @@ struct Config: Codable {
 
     static var dir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("FlowLocal")
+            .appendingPathComponent("EchoType")
     }
     static var path: URL { dir.appendingPathComponent("config.json") }
 
