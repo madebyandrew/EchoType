@@ -48,10 +48,12 @@ open EchoType.app
    granted, then switches to **🎙️** — no relaunch needed.
 2. **Microphone** — prompted the first time you record.
 
-> **Note:** if you rebuild the app, macOS invalidates the Accessibility grant
-> (the ad-hoc code signature changes). Remove EchoType from the Accessibility
-> list with **–** and re-add it with **+**, or run
-> `tccutil reset Accessibility local.echotype.app` and re-grant.
+> **Note on rebuilding:** Each time you run `./build.sh`, the code signature
+> changes (even though the bundle ID stays the same). macOS ties Accessibility
+> permissions to the code signature for security, so the grant is invalidated
+> after rebuild. To re-grant: System Settings → Accessibility → toggle EchoType
+> back on. You can also run `tccutil reset Accessibility local.echotype.app`
+> from the terminal to clear the old grant, then toggle it on again.
 
 ## Usage
 
