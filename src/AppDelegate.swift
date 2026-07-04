@@ -600,10 +600,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: menu bar
 
     func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: 36)
+        statusItem = NSStatusBar.system.statusItem(withLength: 28)
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "EchoType")
-            button.image?.isTemplate = true
+            button.image = NSApplication.shared.applicationIconImage
+            button.image?.size = NSSize(width: 18, height: 18)
         }
         statusItem.behavior = []
         statusItem.menu = NSMenu()
@@ -612,22 +612,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func updateUI() {
         guard let button = statusItem?.button else { return }
+        // Always use the app icon, but update the accessibility description
+        button.image = NSApplication.shared.applicationIconImage
+        button.image?.size = NSSize(width: 18, height: 18)
+
         if capturingHotkey != nil {
-            button.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "Assign key")
+            button.accessibilityLabel = "EchoType - Assign key"
             store.dictationState = "Assign key…"
         } else if eventTap == nil {
-            button.image = NSImage(systemSymbolName: "waveform.slash", accessibilityDescription: "No keyboard access")
+            button.accessibilityLabel = "EchoType - No keyboard access"
             store.dictationState = "No keyboard access"
         } else {
             switch state {
             case .idle:
-                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Idle")
+                button.accessibilityLabel = "EchoType - Idle"
                 store.dictationState = "Idle"
             case .recording:
-                button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Recording")
+                button.accessibilityLabel = "EchoType - Recording"
                 store.dictationState = "Recording…"
             case .transcribing:
-                button.image = NSImage(systemSymbolName: "waveform.badge.magnifyingglass", accessibilityDescription: "Transcribing")
+                button.accessibilityLabel = "EchoType - Transcribing"
                 store.dictationState = "Transcribing…"
             }
         }
