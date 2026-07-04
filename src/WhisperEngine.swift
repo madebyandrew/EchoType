@@ -23,11 +23,26 @@ final class WhisperEngine {
 
     // MARK: server lifecycle
 
+    /// Tears down and relaunches the server (e.g. after a language/model change).
+    func restart() {
+        lock.lock()
+        serverReady = false
+        statusText = "restarting…"
+        let proc = serverProcess
+        serverProcess = nil
+        lock.unlock()
+        proc?.terminationHandler = nil
+        proc?.terminate()
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.5) {
+            self.startServer()
+        }
+    }
+
     func startServer() {
         lock.lock(); defer { lock.unlock() }
         let c = cfg()
         guard FileManager.default.fileExists(atPath: c.whisperServerPath),
-              FileManager.default.fileExists(atPath: c.modelPath) else {
+              FileManager.default.fileExists(atPath: c.effectiveModelPath) else {
             statusText = "whisper-cli (cold start)"
             NSLog("FlowLocal: whisper-server or model missing, will use CLI fallback")
             return
@@ -44,7 +59,7 @@ final class WhisperEngine {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: c.whisperServerPath)
         proc.arguments = [
-            "-m", c.modelPath,
+            "-m", c.effectiveModelPath,
             "--host", "127.0.0.1",
             "--port", "\(c.serverPort)",
             "-l", c.language,
@@ -170,7 +185,7 @@ final class WhisperEngine {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: c.whisperCliPath)
         var args = [
-            "-m", c.modelPath,
+            "-m", c.effectiveModelPath,
             "-f", url.path,
             "--language", c.language,
             "--no-timestamps",

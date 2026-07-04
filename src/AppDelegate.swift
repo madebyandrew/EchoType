@@ -28,6 +28,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var recordingWatchdog: Timer?
     var currentTargetApp = ""
     var pendingSelection = ""
+    var lastInjectedText = ""
+    var lastSamples: [Float] = []
+    let previewHUD = PreviewHUD()
+    var previewTimer: Timer?
+    var previewInflight = false
     let workQueue = DispatchQueue(label: "flowlocal.transcribe", qos: .userInitiated)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -101,6 +106,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ]
             if let found = candidates.first(where: { fm.fileExists(atPath: $0) }) {
                 config.modelPath = found
+            }
+        }
+        if config.multilingualModelPath.isEmpty || !fm.fileExists(atPath: config.multilingualModelPath) {
+            let candidates = [
+                Bundle.main.bundlePath + "/Contents/Resources/ggml-small.bin",
+                NSHomeDirectory() + "/Clone of Wispr Flow/models/ggml-small.bin",
+                Config.dir.appendingPathComponent("ggml-small.bin").path,
+            ]
+            if let found = candidates.first(where: { fm.fileExists(atPath: $0) }) {
+                config.multilingualModelPath = found
             }
         }
         for (keyPath, candidates) in [
@@ -276,6 +291,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("FlowLocal: recording started (\(kind == .dictation ? "dictation" : "rewrite"))")
             state = .recording
             if config.soundFeedback { NSSound(named: "Pop")?.play() }
+            if config.livePreview {
+                previewHUD.show(kind == .dictation ? "🔴 Listening…" : "🔴 Speak your instruction…")
+                previewTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+                    self?.updatePreview()
+                }
+            }
             recordingWatchdog = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
                 guard let self = self else { return }
                 if self.recorder.durationSoFar >= self.config.maxRecordingSeconds {
@@ -292,57 +313,168 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func stopAndTranscribe() {
         recordingWatchdog?.invalidate()
         recordingWatchdog = nil
+        previewTimer?.invalidate()
+        previewTimer = nil
         let samples = recorder.stop()
-        let duration = Double(samples.count) / 16000.0
-        NSLog("FlowLocal: recording stopped — %.1fs of audio", duration)
+        NSLog("FlowLocal: recording stopped — %.1fs of audio", Double(samples.count) / 16000.0)
         if config.soundFeedback { NSSound(named: "Bottle")?.play() }
 
-        guard duration >= 0.3 else {
+        guard Double(samples.count) / 16000.0 >= 0.3 else {
             state = .idle
             updateUI()
+            previewHUD.hide()
             return
         }
+        processSamples(samples, kind: sessionKind, selection: pendingSelection,
+                       targetApp: currentTargetApp, allowCommands: true)
+    }
+
+    private func processSamples(_ samples: [Float], kind: SessionKind, selection: String,
+                                targetApp: String, allowCommands: Bool) {
+        let duration = Double(samples.count) / 16000.0
         state = .transcribing
         updateUI()
+        if config.livePreview { previewHUD.show("✍️ Working locally…") }
 
         let cfg = config
-        let kind = sessionKind
-        let targetApp = currentTargetApp
-        let selection = pendingSelection
         workQueue.async {
             var failure: String?
-            var output = ""
+            var clean = ""
             do {
-                let wav = Recorder.wavData(samples)
-                let raw = try self.engine.transcribe(wav: wav, vocabulary: cfg.dictionary)
-                let clean = cleanTranscript(raw, removeFillers: cfg.removeFillers)
-                if !clean.isEmpty {
-                    output = (kind == .dictation)
-                        ? self.processDictation(clean, cfg: cfg, targetApp: targetApp)
-                        : self.processRewrite(clean, selection: selection, cfg: cfg)
-                }
+                let raw = try self.engine.transcribe(wav: Recorder.wavData(samples), vocabulary: cfg.dictionary)
+                clean = cleanTranscript(raw, removeFillers: cfg.removeFillers)
             } catch {
                 failure = error.localizedDescription
             }
             DispatchQueue.main.async {
-                self.state = .idle
-                self.updateUI()
                 if let failure = failure {
+                    self.state = .idle
+                    self.updateUI()
+                    self.previewHUD.hide()
                     NSLog("FlowLocal: transcription FAILED — \(failure)")
                     self.showAlert(title: "Transcription failed", text: failure)
                     return
                 }
-                guard !output.isEmpty else { return }
-                // Rewrites replace the still-selected text, so always paste them.
-                if cfg.injectByPasting || kind == .rewrite || output.contains("\n") {
-                    Injector.paste(output)
-                } else {
-                    Injector.type(output)
+                // Whole-utterance voice commands act instead of typing.
+                if allowCommands, kind == .dictation, cfg.voiceCommandsEnabled,
+                   self.executeVoiceCommand(clean) {
+                    self.state = .idle
+                    self.updateUI()
+                    self.previewHUD.hide()
+                    return
                 }
-                self.history.add(text: output, duration: duration, appName: targetApp)
-                self.store.reloadAll()
+                self.workQueue.async {
+                    var output = ""
+                    if !clean.isEmpty {
+                        output = (kind == .dictation)
+                            ? self.processDictation(clean, cfg: cfg, targetApp: targetApp)
+                            : self.processRewrite(clean, selection: selection, cfg: cfg)
+                    }
+                    DispatchQueue.main.async {
+                        self.state = .idle
+                        self.updateUI()
+                        self.previewHUD.hide()
+                        guard !output.isEmpty else { return }
+                        // Rewrites replace the still-selected text, so always paste them.
+                        if cfg.injectByPasting || kind == .rewrite || output.contains("\n") {
+                            Injector.paste(output)
+                        } else {
+                            Injector.type(output)
+                        }
+                        if kind == .dictation {
+                            self.lastInjectedText = output
+                            self.lastSamples = samples
+                        }
+                        self.history.add(text: output, duration: duration, appName: targetApp)
+                        self.store.reloadAll()
+                    }
+                }
             }
         }
+    }
+
+    // MARK: live preview
+
+    private func updatePreview() {
+        guard state == .recording, config.livePreview, !previewInflight else { return }
+        let samples = recorder.snapshot()
+        guard Double(samples.count) / 16000.0 > 0.8 else { return }
+        previewInflight = true
+        let cfg = config
+        workQueue.async {
+            let raw = (try? self.engine.transcribe(wav: Recorder.wavData(samples), vocabulary: cfg.dictionary)) ?? ""
+            DispatchQueue.main.async {
+                self.previewInflight = false
+                guard self.state == .recording else { return }
+                let text = cleanTranscript(raw, removeFillers: false)
+                if !text.isEmpty {
+                    self.previewHUD.show("🔴 …" + String(text.suffix(110)))
+                }
+            }
+        }
+    }
+
+    // MARK: voice commands
+
+    /// Handles utterances that are commands rather than content. Returns true
+    /// when the utterance was consumed.
+    private func executeVoiceCommand(_ text: String) -> Bool {
+        let cmd = text.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: " .,!?"))
+        switch cmd {
+        case "new paragraph":
+            Injector.sendKey(36, times: 2)
+            lastInjectedText = ""
+        case "new line", "newline":
+            Injector.sendKey(36)
+            lastInjectedText = ""
+        case "press enter", "hit enter":
+            Injector.sendKey(36)
+            lastInjectedText = ""
+        case "press tab":
+            Injector.sendKey(48)
+        case "undo":
+            Injector.sendKey(6, flags: .maskCommand)   // ⌘Z
+        case "scratch that", "delete that":
+            guard !lastInjectedText.isEmpty else { return true }
+            Injector.backspace(lastInjectedText.count)
+            lastInjectedText = ""
+        case "delete last sentence":
+            guard !lastInjectedText.isEmpty else { return true }
+            let sentence = lastSentence(of: lastInjectedText)
+            Injector.backspace(sentence.count)
+            lastInjectedText = String(lastInjectedText.dropLast(sentence.count))
+        case "retry", "try again":
+            guard !lastSamples.isEmpty else { return true }
+            Injector.backspace(lastInjectedText.count)
+            lastInjectedText = ""
+            let samples = lastSamples
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.processSamples(samples, kind: .dictation, selection: "",
+                                    targetApp: self.currentTargetApp, allowCommands: false)
+            }
+        default:
+            return false
+        }
+        NSLog("FlowLocal: voice command — \(cmd)")
+        return true
+    }
+
+    private func lastSentence(of text: String) -> String {
+        guard !text.isEmpty else { return "" }
+        var boundary = text.startIndex
+        var seenContent = false
+        var i = text.index(before: text.endIndex)
+        while true {
+            let ch = text[i]
+            if seenContent, ch == "." || ch == "!" || ch == "?" || ch == "\n" {
+                boundary = text.index(after: i)
+                break
+            }
+            if !ch.isWhitespace && ch != "." && ch != "!" && ch != "?" { seenContent = true }
+            if i == text.startIndex { break }
+            i = text.index(before: i)
+        }
+        return String(text[boundary...])
     }
 
     // MARK: AI pipeline
@@ -381,7 +513,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !cfg.dictionary.isEmpty {
             system += " Spell these words exactly as given when they occur: \(cfg.dictionary.joined(separator: ", "))."
         }
-        system += transcriptIsDataRule + onlyTextRule
+        system += transcriptIsDataRule + " Keep the output in the same language the transcript was spoken in." + onlyTextRule
         // Few-shot example: a question stays a question. This anchors small
         // models against replying to the transcript.
         let example = ("um so how do I fix this bug in the login page and uh where should I look first",
@@ -560,4 +692,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension AppDelegate: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) { rebuildMenu(menu) }
+}
+
+// MARK: - Live preview HUD (floating pill near the bottom of the screen)
+
+final class PreviewHUD {
+    private let panel: NSPanel
+    private let label: NSTextField
+
+    init() {
+        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 480, height: 52),
+                        styleMask: [.nonactivatingPanel, .borderless],
+                        backing: .buffered, defer: true)
+        panel.level = .statusBar
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.ignoresMouseEvents = true
+        panel.isReleasedWhenClosed = false
+
+        let effect = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 480, height: 52))
+        effect.autoresizingMask = [.width, .height]
+        effect.material = .hudWindow
+        effect.state = .active
+        effect.wantsLayer = true
+        effect.layer?.cornerRadius = 14
+        effect.layer?.masksToBounds = true
+
+        label = NSTextField(labelWithString: "")
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+        label.textColor = .labelColor
+        label.lineBreakMode = .byTruncatingHead
+        label.maximumNumberOfLines = 2
+        label.alignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        effect.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 16),
+            label.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -16),
+            label.centerYAnchor.constraint(equalTo: effect.centerYAnchor),
+        ])
+        panel.contentView?.addSubview(effect)
+    }
+
+    func show(_ text: String) {
+        label.stringValue = text
+        if let screen = NSScreen.main {
+            let f = screen.visibleFrame
+            let w: CGFloat = 480, h: CGFloat = 52
+            panel.setFrame(NSRect(x: f.midX - w / 2, y: f.minY + 70, width: w, height: h), display: true)
+        }
+        if !panel.isVisible { panel.orderFrontRegardless() }
+    }
+
+    func hide() {
+        panel.orderOut(nil)
+    }
 }

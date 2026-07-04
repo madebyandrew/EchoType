@@ -24,6 +24,28 @@ enum Injector {
         }
     }
 
+    /// Presses a key (with optional modifiers) `times` times — used by voice
+    /// commands for Return, Backspace, ⌘Z, etc.
+    static func sendKey(_ keyCode: CGKeyCode, flags: CGEventFlags = [], times: Int = 1) {
+        guard let src = CGEventSource(stateID: .combinedSessionState) else { return }
+        src.userData = injectionMagic
+        for _ in 0..<max(0, times) {
+            if let down = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true) {
+                down.flags = flags
+                down.post(tap: .cgSessionEventTap)
+            }
+            if let up = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false) {
+                up.flags = flags
+                up.post(tap: .cgSessionEventTap)
+            }
+            usleep(6000)
+        }
+    }
+
+    static func backspace(_ count: Int) {
+        sendKey(51, times: min(count, 4000))
+    }
+
     /// Copies the current selection in the frontmost app (simulated ⌘C) and
     /// hands it to `completion`; empty string when nothing is selected.
     /// The user's clipboard is restored afterwards.
