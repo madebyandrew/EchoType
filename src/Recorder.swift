@@ -59,6 +59,12 @@ final class Recorder {
         return result
     }
 
+    /// Copy of everything captured so far — for live preview while recording.
+    func snapshot() -> [Float] {
+        lock.lock(); defer { lock.unlock() }
+        return samples
+    }
+
     var durationSoFar: Double {
         lock.lock()
         let n = samples.count

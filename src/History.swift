@@ -17,6 +17,13 @@ struct Stats {
     var wordsPerMinute = 0
     var dayStreak = 0
     var totalDictations = 0
+    var totalSeconds = 0.0
+}
+
+struct DayWords: Identifiable {
+    let id: String     // "yyyy-MM-dd"
+    let label: String  // "Mon", "Tue", …
+    let words: Int
 }
 
 final class HistoryStore {
@@ -108,6 +115,47 @@ final class HistoryStore {
         }
     }
 
+    func wordsPerDay(days: Int = 14) -> [DayWords] {
+        queue.sync {
+            var byDate: [String: Int] = [:]
+            var stmt: OpaquePointer?
+            if sqlite3_prepare_v2(db,
+                "SELECT date(ts,'unixepoch','localtime'), SUM(words) FROM dictations WHERE ts > ? GROUP BY 1",
+                -1, &stmt, nil) == SQLITE_OK {
+                sqlite3_bind_double(stmt, 1, Date().timeIntervalSince1970 - Double(days) * 86400)
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    byDate[String(cString: sqlite3_column_text(stmt, 0))] = Int(sqlite3_column_int64(stmt, 1))
+                }
+                sqlite3_finalize(stmt)
+            }
+            let dayFmt = DateFormatter(); dayFmt.dateFormat = "yyyy-MM-dd"
+            let labelFmt = DateFormatter(); labelFmt.dateFormat = "EEE"
+            var out: [DayWords] = []
+            for offset in stride(from: days - 1, through: 0, by: -1) {
+                let date = Calendar.current.date(byAdding: .day, value: -offset, to: Date())!
+                let key = dayFmt.string(from: date)
+                out.append(DayWords(id: key, label: labelFmt.string(from: date), words: byDate[key] ?? 0))
+            }
+            return out
+        }
+    }
+
+    func topApps(limit: Int = 5) -> [(String, Int)] {
+        queue.sync {
+            var stmt: OpaquePointer?
+            guard sqlite3_prepare_v2(db,
+                "SELECT app, SUM(words) FROM dictations WHERE app != '' GROUP BY app ORDER BY 2 DESC LIMIT ?",
+                -1, &stmt, nil) == SQLITE_OK else { return [] }
+            defer { sqlite3_finalize(stmt) }
+            sqlite3_bind_int64(stmt, 1, Int64(limit))
+            var out: [(String, Int)] = []
+            while sqlite3_step(stmt) == SQLITE_ROW {
+                out.append((String(cString: sqlite3_column_text(stmt, 0)), Int(sqlite3_column_int64(stmt, 1))))
+            }
+            return out
+        }
+    }
+
     func stats() -> Stats {
         queue.sync {
             var s = Stats()
@@ -117,10 +165,10 @@ final class HistoryStore {
                 -1, &stmt, nil) == SQLITE_OK {
                 if sqlite3_step(stmt) == SQLITE_ROW {
                     s.totalWords = Int(sqlite3_column_int64(stmt, 0))
-                    let totalSeconds = sqlite3_column_double(stmt, 1)
+                    s.totalSeconds = sqlite3_column_double(stmt, 1)
                     s.totalDictations = Int(sqlite3_column_int64(stmt, 2))
-                    if totalSeconds > 1 {
-                        s.wordsPerMinute = Int(Double(s.totalWords) / (totalSeconds / 60.0))
+                    if s.totalSeconds > 1 {
+                        s.wordsPerMinute = Int(Double(s.totalWords) / (s.totalSeconds / 60.0))
                     }
                 }
                 sqlite3_finalize(stmt)

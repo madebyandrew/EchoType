@@ -25,6 +25,11 @@ final class AppStore: ObservableObject {
     @Published var soundFeedback = true
     @Published var appearance = "system"
     @Published var aiEnabled = true
+    @Published var language = "en"
+    @Published var voiceCommandsEnabled = true
+    @Published var livePreview = true
+    @Published var wordsPerDay: [DayWords] = []
+    @Published var topApps: [(String, Int)] = []
     @Published var activeModeID = "cleanup"
     @Published var modes: [Mode] = []
     @Published var dictionary: [String] = []
@@ -40,6 +45,9 @@ final class AppStore: ObservableObject {
         soundFeedback = c.soundFeedback
         appearance = c.appearance
         aiEnabled = c.aiEnabled
+        language = c.language
+        voiceCommandsEnabled = c.voiceCommandsEnabled
+        livePreview = c.livePreview
         activeModeID = c.activeModeID
         modes = c.modes
         dictionary = c.dictionary
@@ -64,6 +72,8 @@ final class AppStore: ObservableObject {
         guard let delegate = delegate else { return }
         stats = delegate.history.stats()
         entries = delegate.history.recent(search: search)
+        wordsPerDay = delegate.history.wordsPerDay()
+        topApps = delegate.history.topApps()
         engineStatus = delegate.engine.statusText
         aiStatus = delegate.llm.statusText
         syncFromConfig(delegate.config)
@@ -83,11 +93,12 @@ final class AppStore: ObservableObject {
 // MARK: - Root
 
 enum SidebarItem: String, Hashable, CaseIterable {
-    case home, history, modes, dictionary, snippets, settings
+    case home, insights, history, modes, dictionary, snippets, settings
 
     var label: String {
         switch self {
         case .home: return "Home"
+        case .insights: return "Insights"
         case .history: return "History"
         case .modes: return "Styles"
         case .dictionary: return "Dictionary"
@@ -98,6 +109,7 @@ enum SidebarItem: String, Hashable, CaseIterable {
     var icon: String {
         switch self {
         case .home: return "house"
+        case .insights: return "chart.bar"
         case .history: return "clock.arrow.circlepath"
         case .modes: return "wand.and.stars"
         case .dictionary: return "character.book.closed"
@@ -148,6 +160,7 @@ struct ContentView: View {
             Group {
                 switch selection ?? .home {
                 case .home: HomeView()
+                case .insights: InsightsView()
                 case .history: HistoryView()
                 case .modes: ModesView()
                 case .dictionary: DictionaryView()
@@ -276,6 +289,83 @@ struct StatCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.05)))
+    }
+}
+
+// MARK: - Insights
+
+struct InsightsView: View {
+    @EnvironmentObject var store: AppStore
+
+    private var timeSavedMinutes: Int {
+        // Typing the same words at ~40 wpm vs the time actually spent speaking.
+        let typingMinutes = Double(store.stats.totalWords) / 40.0
+        let spokenMinutes = store.stats.totalSeconds / 60.0
+        return max(0, Int(typingMinutes - spokenMinutes))
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Insights").font(.system(size: 28, weight: .bold))
+
+                HStack(spacing: 14) {
+                    StatCard(value: "\(timeSavedMinutes) min", label: "saved vs typing (40 wpm)", icon: "clock.badge.checkmark")
+                    StatCard(value: "\(store.stats.wordsPerMinute)", label: "your speaking wpm", icon: "speedometer")
+                    StatCard(value: "\(store.stats.dayStreak)", label: "day streak", icon: "flame")
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Words per day — last 14 days").font(.headline)
+                    let maxWords = max(store.wordsPerDay.map(\.words).max() ?? 1, 1)
+                    HStack(alignment: .bottom, spacing: 6) {
+                        ForEach(store.wordsPerDay) { day in
+                            VStack(spacing: 4) {
+                                Text(day.words > 0 ? "\(day.words)" : "")
+                                    .font(.system(size: 9)).foregroundStyle(.secondary)
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(day.words > 0 ? Color.accentColor : Color.primary.opacity(0.08))
+                                    .frame(height: max(4, CGFloat(day.words) / CGFloat(maxWords) * 120))
+                                Text(day.label.prefix(1))
+                                    .font(.system(size: 9)).foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .frame(height: 160, alignment: .bottom)
+                    .padding(14)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.05)))
+                }
+
+                if !store.topApps.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Where you dictate").font(.headline)
+                        let maxApp = max(store.topApps.map(\.1).max() ?? 1, 1)
+                        VStack(spacing: 8) {
+                            ForEach(store.topApps, id: \.0) { app, words in
+                                HStack {
+                                    Text(app).frame(width: 140, alignment: .leading).lineLimit(1)
+                                    GeometryReader { geo in
+                                        RoundedRectangle(cornerRadius: 3)
+                                            .fill(Color.accentColor.opacity(0.7))
+                                            .frame(width: max(4, geo.size.width * CGFloat(words) / CGFloat(maxApp)))
+                                    }
+                                    .frame(height: 14)
+                                    Text("\(words)").font(.caption).foregroundStyle(.secondary)
+                                        .frame(width: 60, alignment: .trailing)
+                                }
+                            }
+                        }
+                        .padding(14)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.05)))
+                    }
+                }
+                Spacer()
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .onAppear { store.reloadAll() }
     }
 }
 
@@ -655,6 +745,19 @@ struct SettingsView: View {
             }
 
             Section("Transcription") {
+                Picker("Language", selection: Binding(
+                    get: { store.language },
+                    set: { v in
+                        store.updateConfig { $0.language = v }
+                        store.delegate?.engine.restart()
+                    })) {
+                    Text("English (fastest)").tag("en")
+                    Text("Auto-detect — any language").tag("auto")
+                }
+                Text("Auto-detect uses a larger multilingual model: speak English, French, Spanish… no switching. Slightly slower than English-only.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Live preview while speaking", isOn: bind(\.livePreview) { $0.livePreview = $1 })
+                Toggle("Voice commands (new paragraph, scratch that…)", isOn: bind(\.voiceCommandsEnabled) { $0.voiceCommandsEnabled = $1 })
                 Toggle("Remove filler words (um, uh…)", isOn: bind(\.removeFillers) { $0.removeFillers = $1 })
                 Toggle("Sound feedback", isOn: bind(\.soundFeedback) { $0.soundFeedback = $1 })
                 HStack {
@@ -662,6 +765,11 @@ struct SettingsView: View {
                     Spacer()
                     Text(store.engineStatus).foregroundStyle(.secondary)
                 }
+            }
+
+            Section("Voice commands") {
+                Text("Say one of these on its own while dictating: “new paragraph”, “new line”, “press enter”, “press tab”, “undo”, “scratch that”, “delete last sentence”, “retry”.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
 
             Section("Appearance") {

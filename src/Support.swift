@@ -73,9 +73,12 @@ struct Config: Codable {
     var whisperServerPath: String = "/opt/homebrew/bin/whisper-server"
     var serverPort: Int = 18027
     var modelPath: String = ""
-    var language: String = "en"
+    var multilingualModelPath: String = ""
+    var language: String = "en"            // "en" (fast) or "auto" (multilingual detect)
     var maxRecordingSeconds: Double = 300
     var appearance: String = "system"      // system | light | dark
+    var voiceCommandsEnabled: Bool = true
+    var livePreview: Bool = true
 
     // AI layer (all local via Ollama)
     var aiEnabled: Bool = true
@@ -92,8 +95,8 @@ struct Config: Codable {
         case hotkeyKeyCode, hotkeyIsModifier, hotkeyName
         case rewriteHotkeyKeyCode, rewriteHotkeyIsModifier, rewriteHotkeyName
         case toggleMode, injectByPasting, removeFillers, soundFeedback
-        case whisperCliPath, whisperServerPath, serverPort, modelPath, language
-        case maxRecordingSeconds, appearance
+        case whisperCliPath, whisperServerPath, serverPort, modelPath, multilingualModelPath, language
+        case maxRecordingSeconds, appearance, voiceCommandsEnabled, livePreview
         case aiEnabled, ollamaPath, ollamaPort, ollamaModel, activeModeID
         case modes, dictionary, snippets, appRules
     }
@@ -121,9 +124,12 @@ struct Config: Codable {
         whisperServerPath = d(.whisperServerPath, "/opt/homebrew/bin/whisper-server")
         serverPort = d(.serverPort, 18027)
         modelPath = d(.modelPath, "")
+        multilingualModelPath = d(.multilingualModelPath, "")
         language = d(.language, "en")
         maxRecordingSeconds = d(.maxRecordingSeconds, 300)
         appearance = d(.appearance, "system")
+        voiceCommandsEnabled = d(.voiceCommandsEnabled, true)
+        livePreview = d(.livePreview, true)
         aiEnabled = d(.aiEnabled, true)
         ollamaPath = d(.ollamaPath, "/opt/homebrew/bin/ollama")
         ollamaPort = d(.ollamaPort, 11434)
@@ -136,6 +142,11 @@ struct Config: Codable {
         // New built-in modes appear after upgrades; user copies win on id collision.
         let have = Set(modes.map(\.id))
         for m in defaultModes() where !have.contains(m.id) { modes.append(m) }
+    }
+
+    /// Which Whisper model to load: multilingual for auto-detect, else English.
+    var effectiveModelPath: String {
+        (language == "auto" && !multilingualModelPath.isEmpty) ? multilingualModelPath : modelPath
     }
 
     var activeMode: Mode {
