@@ -1,4 +1,4 @@
-// FlowLocal — the main window: sidebar, Home, History, Settings.
+// FlowLocal — the main window: sidebar, Home, History, Styles, Dictionary, Snippets, Settings.
 
 import SwiftUI
 
@@ -13,8 +13,10 @@ final class AppStore: ObservableObject {
         didSet { reloadEntries() }
     }
     @Published var hotkeyName = "Right ⌥"
+    @Published var rewriteHotkeyName = "Right ⌘"
     @Published var capturingHotkey = false
     @Published var engineStatus = "starting…"
+    @Published var aiStatus = "starting…"
     @Published var dictationState = "Idle"
 
     @Published var toggleMode = false
@@ -22,14 +24,27 @@ final class AppStore: ObservableObject {
     @Published var removeFillers = true
     @Published var soundFeedback = true
     @Published var appearance = "system"
+    @Published var aiEnabled = true
+    @Published var activeModeID = "cleanup"
+    @Published var modes: [Mode] = []
+    @Published var dictionary: [String] = []
+    @Published var snippets: [Snippet] = []
+    @Published var appRules: [String: String] = [:]
 
     func syncFromConfig(_ c: Config) {
         hotkeyName = c.hotkeyName
+        rewriteHotkeyName = c.rewriteHotkeyName
         toggleMode = c.toggleMode
         injectByPasting = c.injectByPasting
         removeFillers = c.removeFillers
         soundFeedback = c.soundFeedback
         appearance = c.appearance
+        aiEnabled = c.aiEnabled
+        activeModeID = c.activeModeID
+        modes = c.modes
+        dictionary = c.dictionary
+        snippets = c.snippets
+        appRules = c.appRules
     }
 
     func updateConfig(_ mutate: (inout Config) -> Void) {
@@ -50,6 +65,7 @@ final class AppStore: ObservableObject {
         stats = delegate.history.stats()
         entries = delegate.history.recent(search: search)
         engineStatus = delegate.engine.statusText
+        aiStatus = delegate.llm.statusText
         syncFromConfig(delegate.config)
     }
 
@@ -67,12 +83,15 @@ final class AppStore: ObservableObject {
 // MARK: - Root
 
 enum SidebarItem: String, Hashable, CaseIterable {
-    case home, history, settings
+    case home, history, modes, dictionary, snippets, settings
 
     var label: String {
         switch self {
         case .home: return "Home"
         case .history: return "History"
+        case .modes: return "Styles"
+        case .dictionary: return "Dictionary"
+        case .snippets: return "Snippets"
         case .settings: return "Settings"
         }
     }
@@ -80,6 +99,9 @@ enum SidebarItem: String, Hashable, CaseIterable {
         switch self {
         case .home: return "house"
         case .history: return "clock.arrow.circlepath"
+        case .modes: return "wand.and.stars"
+        case .dictionary: return "character.book.closed"
+        case .snippets: return "text.badge.plus"
         case .settings: return "gearshape"
         }
     }
@@ -127,10 +149,13 @@ struct ContentView: View {
                 switch selection ?? .home {
                 case .home: HomeView()
                 case .history: HistoryView()
+                case .modes: ModesView()
+                case .dictionary: DictionaryView()
+                case .snippets: SnippetsView()
                 case .settings: SettingsView()
                 }
             }
-            .frame(minWidth: 520, minHeight: 420)
+            .frame(minWidth: 540, minHeight: 440)
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -165,7 +190,7 @@ struct HomeView: View {
                         .font(.system(size: 28, weight: .bold))
                     Text(store.toggleMode
                          ? "Press \(store.hotkeyName) anywhere to start and stop dictating."
-                         : "Hold \(store.hotkeyName) anywhere, speak, release — your words land at the cursor.")
+                         : "Hold \(store.hotkeyName) to dictate · hold \(store.rewriteHotkeyName) over selected text to rewrite it with your voice.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -176,18 +201,43 @@ struct HomeView: View {
                     StatCard(value: formatted(store.stats.totalDictations), label: "dictations", icon: "waveform")
                 }
 
-                HStack(spacing: 8) {
-                    Image(systemName: "cpu")
-                        .foregroundStyle(.secondary)
-                    Text("Engine: \(store.engineStatus)")
-                        .font(.callout).foregroundStyle(.secondary)
-                    Spacer()
-                    Text(store.dictationState)
-                        .font(.callout.bold())
-                        .padding(.horizontal, 10).padding(.vertical, 4)
-                        .background(Capsule().fill(store.dictationState == "Idle"
-                                                   ? Color.secondary.opacity(0.15)
-                                                   : Color.red.opacity(0.18)))
+                // Style picker
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Writing style").font(.headline)
+                    HStack(spacing: 8) {
+                        ForEach(store.modes) { m in
+                            Button {
+                                store.updateConfig { $0.activeModeID = m.id }
+                            } label: {
+                                Text(m.name)
+                                    .padding(.horizontal, 12).padding(.vertical, 6)
+                                    .background(Capsule().fill(m.id == store.activeModeID
+                                                               ? Color.accentColor.opacity(0.25)
+                                                               : Color.primary.opacity(0.06)))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "waveform").foregroundStyle(.secondary).frame(width: 16)
+                        Text("Speech: \(store.engineStatus)")
+                            .font(.callout).foregroundStyle(.secondary)
+                        Spacer()
+                        Text(store.dictationState)
+                            .font(.callout.bold())
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(Capsule().fill(store.dictationState == "Idle"
+                                                       ? Color.secondary.opacity(0.15)
+                                                       : Color.red.opacity(0.18)))
+                    }
+                    HStack(spacing: 8) {
+                        Image(systemName: "brain").foregroundStyle(.secondary).frame(width: 16)
+                        Text("AI: \(store.aiStatus)")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
                 }
 
                 if !store.entries.isEmpty {
@@ -334,6 +384,232 @@ struct DictationRow: View {
     }
 }
 
+// MARK: - Styles (modes, spoken triggers, app rules)
+
+struct ModesView: View {
+    @EnvironmentObject var store: AppStore
+    @State private var newRuleApp = ""
+    @State private var newRuleModeID = "cleanup"
+
+    var body: some View {
+        Form {
+            Section {
+                Text("The active style shapes every dictation. Say a style's trigger word first (\"tweet …\") to use it just once. All processing runs on this Mac.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Styles") {
+                ForEach(store.modes) { m in
+                    ModeEditor(mode: m)
+                }
+                Button {
+                    store.updateConfig {
+                        $0.modes.append(Mode(name: "New style", prompt: "Rewrite the dictated text as…"))
+                    }
+                } label: {
+                    Label("Add style", systemImage: "plus")
+                }
+            }
+
+            Section("App rules — pick a style automatically per app") {
+                ForEach(store.appRules.sorted(by: { $0.key < $1.key }), id: \.key) { app, modeID in
+                    HStack {
+                        Text(app)
+                        Spacer()
+                        Text(store.modes.first { $0.id == modeID }?.name ?? "?")
+                            .foregroundStyle(.secondary)
+                        Button { store.updateConfig { $0.appRules[app] = nil } } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                HStack {
+                    TextField("App name (e.g. Slack, Mail)", text: $newRuleApp)
+                    Picker("", selection: $newRuleModeID) {
+                        ForEach(store.modes) { m in Text(m.name).tag(m.id) }
+                    }
+                    .frame(width: 150)
+                    Button("Add") {
+                        let app = newRuleApp.trimmingCharacters(in: .whitespaces)
+                        guard !app.isEmpty else { return }
+                        store.updateConfig { $0.appRules[app] = newRuleModeID }
+                        newRuleApp = ""
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct ModeEditor: View {
+    @EnvironmentObject var store: AppStore
+    let mode: Mode
+    @State private var expanded = false
+
+    private var isActive: Bool { store.activeModeID == mode.id }
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $expanded) {
+            VStack(alignment: .leading, spacing: 8) {
+                if mode.id != "raw" {
+                    TextField("Spoken trigger word (optional, e.g. tweet)", text: Binding(
+                        get: { store.modes.first { $0.id == mode.id }?.trigger ?? "" },
+                        set: { v in store.updateConfig { c in
+                            if let i = c.modes.firstIndex(where: { $0.id == mode.id }) { c.modes[i].trigger = v }
+                        }}))
+                    TextEditor(text: Binding(
+                        get: { store.modes.first { $0.id == mode.id }?.prompt ?? "" },
+                        set: { v in store.updateConfig { c in
+                            if let i = c.modes.firstIndex(where: { $0.id == mode.id }) { c.modes[i].prompt = v }
+                        }}))
+                        .font(.callout)
+                        .frame(minHeight: 60)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.1)))
+                } else {
+                    Text("Raw skips the AI entirely — you get exactly what Whisper heard.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if !mode.builtin {
+                    Button(role: .destructive) {
+                        store.updateConfig { c in
+                            c.modes.removeAll { $0.id == mode.id }
+                            if c.activeModeID == mode.id { c.activeModeID = "cleanup" }
+                        }
+                    } label: {
+                        Label("Delete style", systemImage: "trash")
+                    }
+                }
+            }
+            .padding(.top, 4)
+        } label: {
+            HStack {
+                Button {
+                    store.updateConfig { $0.activeModeID = mode.id }
+                } label: {
+                    Image(systemName: isActive ? "largecircle.fill.circle" : "circle")
+                        .foregroundStyle(isActive ? Color.accentColor : .secondary)
+                }
+                .buttonStyle(.borderless)
+                Text(mode.name)
+                if let t = store.modes.first(where: { $0.id == mode.id })?.trigger, !t.isEmpty {
+                    Text("“\(t)”").font(.caption).foregroundStyle(.secondary)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Capsule().fill(Color.primary.opacity(0.06)))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Dictionary
+
+struct DictionaryView: View {
+    @EnvironmentObject var store: AppStore
+    @State private var newWord = ""
+
+    var body: some View {
+        Form {
+            Section {
+                Text("Names, acronyms, and jargon listed here bias speech recognition and are spelled exactly as written. Example: AuraMint, Cherian, Vaishnav.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Words") {
+                ForEach(store.dictionary, id: \.self) { word in
+                    HStack {
+                        Text(word)
+                        Spacer()
+                        Button { store.updateConfig { c in c.dictionary.removeAll { $0 == word } } } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                HStack {
+                    TextField("Add a word or name…", text: $newWord)
+                        .onSubmit(addWord)
+                    Button("Add", action: addWord)
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func addWord() {
+        let w = newWord.trimmingCharacters(in: .whitespaces)
+        guard !w.isEmpty else { return }
+        store.updateConfig { c in
+            if !c.dictionary.contains(w) { c.dictionary.append(w) }
+        }
+        newWord = ""
+    }
+}
+
+// MARK: - Snippets
+
+struct SnippetsView: View {
+    @EnvironmentObject var store: AppStore
+
+    var body: some View {
+        Form {
+            Section {
+                Text("Say a snippet's trigger phrase on its own and FlowLocal types the full text. Example: say “meeting notes” to insert your meeting template.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Snippets") {
+                ForEach(store.snippets) { s in
+                    SnippetEditor(snippet: s)
+                }
+                Button {
+                    store.updateConfig { $0.snippets.append(Snippet(trigger: "trigger phrase", text: "Expanded text…")) }
+                } label: {
+                    Label("Add snippet", systemImage: "plus")
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct SnippetEditor: View {
+    @EnvironmentObject var store: AppStore
+    let snippet: Snippet
+    @State private var expanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $expanded) {
+            VStack(alignment: .leading, spacing: 8) {
+                TextField("Spoken trigger phrase", text: Binding(
+                    get: { store.snippets.first { $0.id == snippet.id }?.trigger ?? "" },
+                    set: { v in store.updateConfig { c in
+                        if let i = c.snippets.firstIndex(where: { $0.id == snippet.id }) { c.snippets[i].trigger = v }
+                    }}))
+                TextEditor(text: Binding(
+                    get: { store.snippets.first { $0.id == snippet.id }?.text ?? "" },
+                    set: { v in store.updateConfig { c in
+                        if let i = c.snippets.firstIndex(where: { $0.id == snippet.id }) { c.snippets[i].text = v }
+                    }}))
+                    .font(.callout)
+                    .frame(minHeight: 70)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.1)))
+                Button(role: .destructive) {
+                    store.updateConfig { c in c.snippets.removeAll { $0.id == snippet.id } }
+                } label: {
+                    Label("Delete snippet", systemImage: "trash")
+                }
+            }
+            .padding(.top, 4)
+        } label: {
+            HStack {
+                Text(store.snippets.first { $0.id == snippet.id }?.trigger ?? "")
+                Spacer()
+                Text(store.snippets.first { $0.id == snippet.id }?.text.prefix(40) ?? "")
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+    }
+}
+
 // MARK: - Settings
 
 struct SettingsView: View {
@@ -341,18 +617,35 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Push-to-Talk") {
+            Section("Shortcuts") {
                 HStack {
-                    Text("Shortcut")
+                    Text("Dictate")
                     Spacer()
                     Text(store.capturingHotkey ? "Press any key… (Esc cancels)" : store.hotkeyName)
                         .foregroundStyle(store.capturingHotkey ? .orange : .secondary)
-                    Button(store.capturingHotkey ? "Waiting…" : "Change…") {
-                        store.delegate?.beginHotkeyCapture()
-                    }
-                    .disabled(store.capturingHotkey)
+                    Button("Change…") { store.delegate?.beginHotkeyCapture(.dictation) }
+                        .disabled(store.capturingHotkey)
+                }
+                HStack {
+                    Text("Rewrite selection / AI command")
+                    Spacer()
+                    Text(store.capturingHotkey ? "Press any key… (Esc cancels)" : store.rewriteHotkeyName)
+                        .foregroundStyle(store.capturingHotkey ? .orange : .secondary)
+                    Button("Change…") { store.delegate?.beginHotkeyCapture(.rewrite) }
+                        .disabled(store.capturingHotkey)
                 }
                 Toggle("Toggle mode — press to start, press to stop", isOn: bind(\.toggleMode) { $0.toggleMode = $1 })
+            }
+
+            Section("Local AI") {
+                Toggle("AI cleanup and styles (via Ollama, on this Mac)", isOn: bind(\.aiEnabled) { $0.aiEnabled = $1 })
+                HStack {
+                    Text("Status")
+                    Spacer()
+                    Text(store.aiStatus).foregroundStyle(.secondary)
+                }
+                Text("With AI off (or the Raw style), you get Whisper's transcript with basic regex cleanup only.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
 
             Section("Insertion") {
@@ -386,7 +679,7 @@ struct SettingsView: View {
                 Button("Open config file") {
                     NSWorkspace.shared.open(Config.path)
                 }
-                Text("Model, language, port, and recording limits live in the config file.")
+                Text("Whisper model, Ollama model, language, ports, and recording limits live in the config file.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

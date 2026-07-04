@@ -2,14 +2,56 @@
 
 import Cocoa
 
+// MARK: - Modes & snippets
+
+struct Mode: Codable, Identifiable, Hashable {
+    var id: String = UUID().uuidString
+    var name: String
+    var prompt: String            // system prompt for the local LLM; empty = raw transcript
+    var trigger: String = ""      // optional spoken trigger word, e.g. "tweet"
+    var builtin: Bool = false
+}
+
+struct Snippet: Codable, Identifiable, Hashable {
+    var id: String = UUID().uuidString
+    var trigger: String           // spoken phrase that expands
+    var text: String
+}
+
+let onlyTextRule = " Output only the final text — no explanations, no preamble, no surrounding quotes."
+
+func defaultModes() -> [Mode] {
+    [
+        Mode(id: "raw", name: "Raw", prompt: "", builtin: true),
+        Mode(id: "cleanup", name: "Clean up",
+             prompt: "You clean up dictated speech. Fix punctuation, capitalization, and grammar. Remove filler words and false starts. Keep the speaker's own words and meaning — never add, summarize, or reorder content.",
+             builtin: true),
+        Mode(id: "email", name: "Email",
+             prompt: "Turn dictated speech into polished, professional email prose. Fix grammar, structure into short paragraphs, keep the meaning. Do not invent a greeting, subject, or sign-off unless the speaker said one.",
+             builtin: true),
+        Mode(id: "slack", name: "Slack",
+             prompt: "Turn dictated speech into a casual, concise chat message. Fix grammar, keep it friendly and brief, keep the meaning.",
+             builtin: true),
+        Mode(id: "notes", name: "Notes",
+             prompt: "Turn dictated speech into terse notes as a plain-text list, one point per line, each starting with '- '. Keep all facts; drop conversational filler.",
+             builtin: true),
+        Mode(id: "markdown", name: "Markdown",
+             prompt: "Format dictated speech as clean Markdown. Use headers, lists, bold, and code spans where they fit naturally. Keep the speaker's content and meaning.",
+             builtin: true),
+    ]
+}
+
 // MARK: - Config
 
 struct Config: Codable {
-    var hotkeyKeyCode: Int64 = 61          // Right Option by default
+    var hotkeyKeyCode: Int64 = 61          // Right Option
     var hotkeyIsModifier: Bool = true
     var hotkeyName: String = "Right ⌥"
-    var toggleMode: Bool = false           // false = hold to talk, true = press to start/stop
-    var injectByPasting: Bool = false      // false = type it in, true = paste via ⌘V
+    var rewriteHotkeyKeyCode: Int64 = 54   // Right Command
+    var rewriteHotkeyIsModifier: Bool = true
+    var rewriteHotkeyName: String = "Right ⌘"
+    var toggleMode: Bool = false
+    var injectByPasting: Bool = false
     var removeFillers: Bool = true
     var soundFeedback: Bool = true
     var whisperCliPath: String = "/opt/homebrew/bin/whisper-cli"
@@ -19,6 +61,75 @@ struct Config: Codable {
     var language: String = "en"
     var maxRecordingSeconds: Double = 300
     var appearance: String = "system"      // system | light | dark
+
+    // AI layer (all local via Ollama)
+    var aiEnabled: Bool = true
+    var ollamaPath: String = "/opt/homebrew/bin/ollama"
+    var ollamaPort: Int = 11434
+    var ollamaModel: String = "llama3.2:3b"
+    var activeModeID: String = "cleanup"
+    var modes: [Mode] = defaultModes()
+    var dictionary: [String] = []
+    var snippets: [Snippet] = []
+    var appRules: [String: String] = [:]   // frontmost app name → mode id
+
+    enum CodingKeys: String, CodingKey {
+        case hotkeyKeyCode, hotkeyIsModifier, hotkeyName
+        case rewriteHotkeyKeyCode, rewriteHotkeyIsModifier, rewriteHotkeyName
+        case toggleMode, injectByPasting, removeFillers, soundFeedback
+        case whisperCliPath, whisperServerPath, serverPort, modelPath, language
+        case maxRecordingSeconds, appearance
+        case aiEnabled, ollamaPath, ollamaPort, ollamaModel, activeModeID
+        case modes, dictionary, snippets, appRules
+    }
+
+    init() {}
+
+    // Tolerant decoding: fields added in later versions fall back to defaults,
+    // so upgrading never wipes the user's settings.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func d<T: Decodable>(_ key: CodingKeys, _ def: T) -> T {
+            (try? c.decode(T.self, forKey: key)) ?? def
+        }
+        hotkeyKeyCode = d(.hotkeyKeyCode, 61)
+        hotkeyIsModifier = d(.hotkeyIsModifier, true)
+        hotkeyName = d(.hotkeyName, "Right ⌥")
+        rewriteHotkeyKeyCode = d(.rewriteHotkeyKeyCode, 54)
+        rewriteHotkeyIsModifier = d(.rewriteHotkeyIsModifier, true)
+        rewriteHotkeyName = d(.rewriteHotkeyName, "Right ⌘")
+        toggleMode = d(.toggleMode, false)
+        injectByPasting = d(.injectByPasting, false)
+        removeFillers = d(.removeFillers, true)
+        soundFeedback = d(.soundFeedback, true)
+        whisperCliPath = d(.whisperCliPath, "/opt/homebrew/bin/whisper-cli")
+        whisperServerPath = d(.whisperServerPath, "/opt/homebrew/bin/whisper-server")
+        serverPort = d(.serverPort, 18027)
+        modelPath = d(.modelPath, "")
+        language = d(.language, "en")
+        maxRecordingSeconds = d(.maxRecordingSeconds, 300)
+        appearance = d(.appearance, "system")
+        aiEnabled = d(.aiEnabled, true)
+        ollamaPath = d(.ollamaPath, "/opt/homebrew/bin/ollama")
+        ollamaPort = d(.ollamaPort, 11434)
+        ollamaModel = d(.ollamaModel, "llama3.2:3b")
+        activeModeID = d(.activeModeID, "cleanup")
+        modes = d(.modes, defaultModes())
+        dictionary = d(.dictionary, [])
+        snippets = d(.snippets, [])
+        appRules = d(.appRules, [:])
+        // New built-in modes appear after upgrades; user copies win on id collision.
+        let have = Set(modes.map(\.id))
+        for m in defaultModes() where !have.contains(m.id) { modes.append(m) }
+    }
+
+    var activeMode: Mode {
+        modes.first { $0.id == activeModeID } ?? modes[0]
+    }
+
+    func mode(id: String) -> Mode? {
+        modes.first { $0.id == id }
+    }
 
     static var dir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -80,13 +191,12 @@ func keyName(_ keyCode: Int64) -> String {
     keyNames[keyCode] ?? "Key #\(keyCode)"
 }
 
-// MARK: - Transcript cleanup
+// MARK: - Transcript cleanup (regex baseline; the LLM does the heavy lifting)
 
 func cleanTranscript(_ raw: String, removeFillers: Bool) -> String {
     var text = raw
         .replacingOccurrences(of: "\n", with: " ")
         .trimmingCharacters(in: .whitespacesAndNewlines)
-    // Drop whisper's non-speech annotations: [BLANK_AUDIO], (music), etc.
     for pattern in ["\\[[^\\]]*\\]", "\\([^)]*\\)", "♪[^♪]*♪"] {
         text = text.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
     }
@@ -100,4 +210,19 @@ func cleanTranscript(_ raw: String, removeFillers: Bool) -> String {
     text = text.replacingOccurrences(of: " +", with: " ", options: .regularExpression)
         .trimmingCharacters(in: .whitespacesAndNewlines)
     return text
+}
+
+/// Strips a spoken trigger word from the start of a transcript, if present.
+/// Returns the remainder, or nil when the transcript doesn't start with the trigger.
+func stripTrigger(_ trigger: String, from text: String) -> String? {
+    let t = trigger.trimmingCharacters(in: .whitespaces).lowercased()
+    guard !t.isEmpty else { return nil }
+    let lower = text.lowercased()
+    guard lower.hasPrefix(t) else { return nil }
+    var rest = String(text.dropFirst(t.count))
+    guard rest.isEmpty || rest.first == " " || rest.first == "," || rest.first == "." || rest.first == ":" else {
+        return nil  // trigger must be a whole word
+    }
+    while let f = rest.first, f == " " || f == "," || f == "." || f == ":" { rest.removeFirst() }
+    return rest
 }

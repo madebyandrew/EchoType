@@ -104,19 +104,21 @@ final class WhisperEngine {
 
     // MARK: transcription
 
-    /// Blocking; call from a background queue.
-    func transcribe(wav: Data) throws -> String {
+    /// Blocking; call from a background queue. `vocabulary` biases recognition
+    /// toward the user's dictionary (names, acronyms, jargon).
+    func transcribe(wav: Data, vocabulary: [String] = []) throws -> String {
+        let prompt = vocabulary.isEmpty ? "" : "Glossary: " + vocabulary.joined(separator: ", ") + "."
         lock.lock()
         let useServer = serverReady && serverProcess?.isRunning == true
         lock.unlock()
         if useServer {
-            do { return try transcribeViaServer(wav: wav) }
+            do { return try transcribeViaServer(wav: wav, prompt: prompt) }
             catch { NSLog("FlowLocal: server transcription failed (\(error.localizedDescription)), falling back to CLI") }
         }
-        return try transcribeViaCLI(wav: wav)
+        return try transcribeViaCLI(wav: wav, prompt: prompt)
     }
 
-    private func transcribeViaServer(wav: Data) throws -> String {
+    private func transcribeViaServer(wav: Data, prompt: String) throws -> String {
         let boundary = "FlowLocal-\(UUID().uuidString)"
         var body = Data()
         func field(_ name: String, _ value: String) {
@@ -124,6 +126,7 @@ final class WhisperEngine {
         }
         field("response_format", "json")
         field("temperature", "0.0")
+        if !prompt.isEmpty { field("prompt", prompt) }
         body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\nContent-Type: audio/wav\r\n\r\n".data(using: .utf8)!)
         body.append(wav)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
@@ -157,7 +160,7 @@ final class WhisperEngine {
         return try result.get()
     }
 
-    private func transcribeViaCLI(wav: Data) throws -> String {
+    private func transcribeViaCLI(wav: Data, prompt: String) throws -> String {
         let c = cfg()
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("flowlocal-\(UUID().uuidString).wav")
@@ -166,7 +169,7 @@ final class WhisperEngine {
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: c.whisperCliPath)
-        proc.arguments = [
+        var args = [
             "-m", c.modelPath,
             "-f", url.path,
             "--language", c.language,
@@ -174,6 +177,8 @@ final class WhisperEngine {
             "--no-prints",
             "-t", "\(max(2, ProcessInfo.processInfo.activeProcessorCount - 2))",
         ]
+        if !prompt.isEmpty { args += ["--prompt", prompt] }
+        proc.arguments = args
         let stdout = Pipe()
         proc.standardOutput = stdout
         proc.standardError = Pipe()
