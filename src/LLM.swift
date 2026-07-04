@@ -113,16 +113,20 @@ final class OllamaEngine {
 
     // MARK: chat
 
-    /// Blocking; call from a background queue.
-    func chat(system: String, user: String) throws -> String {
+    /// Blocking; call from a background queue. Optional few-shot `example`
+    /// (input, output) anchors small models far better than instructions alone.
+    func chat(system: String, user: String, example: (String, String)? = nil) throws -> String {
+        var messages: [[String: String]] = [["role": "system", "content": system]]
+        if let (exIn, exOut) = example {
+            messages.append(["role": "user", "content": exIn])
+            messages.append(["role": "assistant", "content": exOut])
+        }
+        messages.append(["role": "user", "content": user])
         let payload: [String: Any] = [
             "model": cfg().ollamaModel,
             "stream": false,
             "options": ["temperature": 0.2],
-            "messages": [
-                ["role": "system", "content": system],
-                ["role": "user", "content": user],
-            ],
+            "messages": messages,
         ]
         var req = URLRequest(url: baseURL.appendingPathComponent("api/chat"))
         req.httpMethod = "POST"
