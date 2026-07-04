@@ -1,0 +1,15 @@
+# Build output (users build locally with ./build.sh)
+FlowLocal.app/
+
+# Whisper models are too large for git — README has the download command
+models/*.bin
+
+# macOS noise
+.DS_Store
+
+# Local assistant config
+.claude/
+
+# Scratch audio
+*.wav
+*.aiff
