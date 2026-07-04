@@ -3,25 +3,27 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>FlowLocal</string>
+	<string>EchoType</string>
 	<key>CFBundleDisplayName</key>
-	<string>FlowLocal</string>
+	<string>EchoType</string>
 	<key>CFBundleIdentifier</key>
-	<string>local.flowlocal.app</string>
+	<string>local.echotype.app</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleExecutable</key>
-	<string>FlowLocal</string>
+	<string>EchoType</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>FlowLocal records your voice while you hold the push-to-talk key so it can transcribe it on this Mac. Audio never leaves your machine.</string>
+	<string>EchoType records your voice while you hold the push-to-talk key so it can transcribe it on this Mac. Audio never leaves your machine.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

@@ -1,4 +1,4 @@
-// FlowLocal — microphone capture at 16 kHz mono.
+// EchoType — microphone capture at 16 kHz mono.
 
 import AVFoundation
 
@@ -18,7 +18,7 @@ final class Recorder {
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0 else {
-            throw NSError(domain: "FlowLocal", code: 1,
+            throw NSError(domain: "EchoType", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "No microphone input available."])
         }
         converter = AVAudioConverter(from: inputFormat, to: targetFormat)

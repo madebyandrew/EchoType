@@ -1,4 +1,4 @@
-// FlowLocal — app lifecycle: menu bar, event tap, dictation pipeline, main window.
+// EchoType — app lifecycle: menu bar, event tap, dictation pipeline, main window.
 
 import Cocoa
 import SwiftUI
@@ -33,7 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let previewHUD = PreviewHUD()
     var previewTimer: Timer?
     var previewInflight = false
-    let workQueue = DispatchQueue(label: "flowlocal.transcribe", qos: .userInitiated)
+    let workQueue = DispatchQueue(label: "echotype.transcribe", qos: .userInitiated)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         store.delegate = self
@@ -74,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if window == nil {
             let hosting = NSHostingController(rootView: ContentView().environmentObject(store))
             let w = NSWindow(contentViewController: hosting)
-            w.title = "FlowLocal"
+            w.title = "EchoType"
             w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             w.setContentSize(NSSize(width: 920, height: 600))
             w.isReleasedWhenClosed = false
@@ -140,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !granted {
                 DispatchQueue.main.async {
                     self.showAlert(title: "Microphone access needed",
-                                   text: "FlowLocal needs the microphone to hear you. Grant access in System Settings → Privacy & Security → Microphone.")
+                                   text: "EchoType needs the microphone to hear you. Grant access in System Settings → Privacy & Security → Microphone.")
                 }
             }
         }
@@ -170,10 +170,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 warnedAboutAccessibility = true
                 DispatchQueue.main.async {
                     self.showAlert(title: "One more step: Accessibility",
-                                   text: "To hear your push-to-talk key and type text for you, enable FlowLocal in System Settings → Privacy & Security → Accessibility. It will start working the moment you flip the switch — no relaunch needed.")
+                                   text: "To hear your push-to-talk key and type text for you, enable EchoType in System Settings → Privacy & Security → Accessibility. It will start working the moment you flip the switch — no relaunch needed.")
                 }
             }
-            NSLog("FlowLocal: event tap creation FAILED — Accessibility permission missing or stale")
+            NSLog("EchoType: event tap creation FAILED — Accessibility permission missing or stale")
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { self.setupEventTap() }
             updateUI()
             return
@@ -181,7 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
-        NSLog("FlowLocal: event tap active")
+        NSLog("EchoType: event tap active")
         updateUI()
     }
 
@@ -283,12 +283,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Grab the selection while the user starts speaking.
             Injector.copySelection { [weak self] sel in
                 self?.pendingSelection = sel
-                NSLog("FlowLocal: rewrite session — selection of \(sel.count) chars")
+                NSLog("EchoType: rewrite session — selection of \(sel.count) chars")
             }
         }
         do {
             try recorder.start()
-            NSLog("FlowLocal: recording started (\(kind == .dictation ? "dictation" : "rewrite"))")
+            NSLog("EchoType: recording started (\(kind == .dictation ? "dictation" : "rewrite"))")
             state = .recording
             if config.soundFeedback { NSSound(named: "Pop")?.play() }
             if config.livePreview {
@@ -316,7 +316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         previewTimer?.invalidate()
         previewTimer = nil
         let samples = recorder.stop()
-        NSLog("FlowLocal: recording stopped — %.1fs of audio", Double(samples.count) / 16000.0)
+        NSLog("EchoType: recording stopped — %.1fs of audio", Double(samples.count) / 16000.0)
         if config.soundFeedback { NSSound(named: "Bottle")?.play() }
 
         guard Double(samples.count) / 16000.0 >= 0.3 else {
@@ -351,7 +351,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self.state = .idle
                     self.updateUI()
                     self.previewHUD.hide()
-                    NSLog("FlowLocal: transcription FAILED — \(failure)")
+                    NSLog("EchoType: transcription FAILED — \(failure)")
                     self.showAlert(title: "Transcription failed", text: failure)
                     return
                 }
@@ -455,7 +455,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         default:
             return false
         }
-        NSLog("FlowLocal: voice command — \(cmd)")
+        NSLog("EchoType: voice command — \(cmd)")
         return true
     }
 
@@ -486,7 +486,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let snippet = cfg.snippets.first(where: {
             $0.trigger.lowercased().trimmingCharacters(in: .whitespaces) == normalized && !$0.trigger.isEmpty
         }) {
-            NSLog("FlowLocal: expanded snippet '\(snippet.trigger)'")
+            NSLog("EchoType: expanded snippet '\(snippet.trigger)'")
             return snippet.text
         }
 
@@ -497,14 +497,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let rest = stripTrigger(m.trigger, from: text), !rest.isEmpty {
                 mode = m
                 body = rest
-                NSLog("FlowLocal: spoken trigger '\(m.trigger)' → mode \(m.name)")
+                NSLog("EchoType: spoken trigger '\(m.trigger)' → mode \(m.name)")
                 break
             }
         }
         // App rule, then the globally active mode.
         if mode == nil, let ruleID = cfg.appRules[targetApp], let m = cfg.mode(id: ruleID) {
             mode = m
-            NSLog("FlowLocal: app rule \(targetApp) → mode \(m.name)")
+            NSLog("EchoType: app rule \(targetApp) → mode \(m.name)")
         }
         let chosen = mode ?? cfg.activeMode
 
@@ -529,13 +529,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let outWords = out.split { $0.isWhitespace }.count
                 let overlap = wordOverlap(body, out)
                 if overlap < 0.4 || outWords > Int(Double(inWords) * 1.4) + 5 {
-                    NSLog("FlowLocal: LLM output diverged (overlap %.2f, %d→%d words) — model likely replied to the transcript; using raw transcript", overlap, inWords, outWords)
+                    NSLog("EchoType: LLM output diverged (overlap %.2f, %d→%d words) — model likely replied to the transcript; using raw transcript", overlap, inWords, outWords)
                     return body
                 }
             }
             return out
         } catch {
-            NSLog("FlowLocal: LLM cleanup failed (\(error.localizedDescription)) — using raw transcript")
+            NSLog("EchoType: LLM cleanup failed (\(error.localizedDescription)) — using raw transcript")
             return body
         }
     }
@@ -544,7 +544,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// when nothing is selected).
     private func processRewrite(_ instruction: String, selection: String, cfg: Config) -> String {
         guard cfg.aiEnabled, llm.available else {
-            NSLog("FlowLocal: rewrite requested but local AI is unavailable")
+            NSLog("EchoType: rewrite requested but local AI is unavailable")
             return ""
         }
         do {
@@ -560,7 +560,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                     user: "Instruction: \(instruction)\n\nText:\n\(selection)")
             }
         } catch {
-            NSLog("FlowLocal: rewrite failed — \(error.localizedDescription)")
+            NSLog("EchoType: rewrite failed — \(error.localizedDescription)")
             return ""
         }
     }
@@ -659,7 +659,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modeRoot.submenu = modeMenu
         menu.addItem(modeRoot)
 
-        let openWin = NSMenuItem(title: "Open FlowLocal", action: #selector(openWindowClicked), keyEquivalent: "o")
+        let openWin = NSMenuItem(title: "Open EchoType", action: #selector(openWindowClicked), keyEquivalent: "o")
         openWin.target = self
         menu.addItem(openWin)
 
@@ -669,7 +669,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(privacy)
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit FlowLocal", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit EchoType", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
     @objc func openWindowClicked() { showWindow() }

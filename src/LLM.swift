@@ -1,4 +1,4 @@
-// FlowLocal — local LLM via Ollama (loopback only; nothing leaves the machine).
+// EchoType — local LLM via Ollama (loopback only; nothing leaves the machine).
 //
 // Manages `ollama serve` as a child process if it isn't already running, and
 // exposes a blocking chat() used for cleanup, writing modes, and rewrites.
@@ -56,7 +56,7 @@ final class OllamaEngine {
                 proc.standardError = Pipe()
                 try? proc.run()
                 lock.lock(); serveProcess = proc; lock.unlock()
-                NSLog("FlowLocal: launched ollama serve")
+                NSLog("EchoType: launched ollama serve")
                 let deadline = Date().addingTimeInterval(15)
                 while Date() < deadline {
                     if httpGet("/api/tags") != nil {
@@ -87,9 +87,9 @@ final class OllamaEngine {
         if shouldPull { pulling = true }
         lock.unlock()
         if has {
-            NSLog("FlowLocal: Ollama model \(want) is ready")
+            NSLog("EchoType: Ollama model \(want) is ready")
         } else if shouldPull {
-            NSLog("FlowLocal: pulling Ollama model \(want) in the background")
+            NSLog("EchoType: pulling Ollama model \(want) in the background")
             DispatchQueue.global(qos: .utility).async { self.pullModel(want) }
         }
     }
@@ -135,7 +135,7 @@ final class OllamaEngine {
         req.timeoutInterval = 90
 
         let sem = DispatchSemaphore(value: 0)
-        var result: Result<String, Error> = .failure(NSError(domain: "FlowLocal", code: 5,
+        var result: Result<String, Error> = .failure(NSError(domain: "EchoType", code: 5,
             userInfo: [NSLocalizedDescriptionKey: "No response from local Ollama"]))
         URLSession.shared.dataTask(with: req) { data, resp, err in
             defer { sem.signal() }
@@ -144,7 +144,7 @@ final class OllamaEngine {
                   let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let msg = obj["message"] as? [String: Any],
                   let content = msg["content"] as? String else {
-                result = .failure(NSError(domain: "FlowLocal", code: 6,
+                result = .failure(NSError(domain: "EchoType", code: 6,
                     userInfo: [NSLocalizedDescriptionKey: "Ollama HTTP \((resp as? HTTPURLResponse)?.statusCode ?? -1)"]))
                 return
             }

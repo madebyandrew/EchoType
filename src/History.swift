@@ -1,4 +1,4 @@
-// FlowLocal — local dictation history in SQLite. Never leaves the machine.
+// EchoType — local dictation history in SQLite. Never leaves the machine.
 
 import Foundation
 import SQLite3
@@ -28,14 +28,14 @@ struct DayWords: Identifiable {
 
 final class HistoryStore {
     private var db: OpaquePointer?
-    private let queue = DispatchQueue(label: "flowlocal.history")
+    private let queue = DispatchQueue(label: "echotype.history")
     private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     init() {
         try? FileManager.default.createDirectory(at: Config.dir, withIntermediateDirectories: true)
         let path = Config.dir.appendingPathComponent("history.sqlite").path
         if sqlite3_open(path, &db) != SQLITE_OK {
-            NSLog("FlowLocal: could not open history database")
+            NSLog("EchoType: could not open history database")
             db = nil
             return
         }
@@ -55,7 +55,7 @@ final class HistoryStore {
     private func exec(_ sql: String) {
         var err: UnsafeMutablePointer<CChar>?
         if sqlite3_exec(db, sql, nil, nil, &err) != SQLITE_OK, let err = err {
-            NSLog("FlowLocal: sqlite error — \(String(cString: err))")
+            NSLog("EchoType: sqlite error — \(String(cString: err))")
             sqlite3_free(err)
         }
     }
