@@ -2,6 +2,9 @@
 
 import SwiftUI
 
+/// Brand green from the app icon — the accent for both light and dark themes.
+let brandGreen = Color(red: 0.16, green: 0.62, blue: 0.39)
+
 // MARK: - Store (bridges AppDelegate ↔ SwiftUI)
 
 final class AppStore: ObservableObject {
@@ -135,7 +138,11 @@ struct ContentView: View {
             .navigationSplitViewColumnWidth(min: 170, ideal: 190)
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack(spacing: 8) {
-                    Image(systemName: "waveform").font(.title3)
+                    if let appIcon = NSApplication.shared.applicationIconImage {
+                        Image(nsImage: appIcon)
+                            .resizable()
+                            .frame(width: 26, height: 26)
+                    }
                     Text("EchoType").font(.title3.bold())
                     Spacer()
                 }
@@ -182,6 +189,7 @@ struct ContentView: View {
                 .help(store.appearance == "dark" ? "Switch to light mode" : "Switch to dark mode")
             }
         }
+        .tint(brandGreen)
         .onAppear { store.reloadAll() }
     }
 }
@@ -225,7 +233,7 @@ struct HomeView: View {
                                 Text(m.name)
                                     .padding(.horizontal, 12).padding(.vertical, 6)
                                     .background(Capsule().fill(m.id == store.activeModeID
-                                                               ? Color.accentColor.opacity(0.25)
+                                                               ? brandGreen.opacity(0.25)
                                                                : Color.primary.opacity(0.06)))
                             }
                             .buttonStyle(.plain)
@@ -324,7 +332,7 @@ struct InsightsView: View {
                                 Text(day.words > 0 ? "\(day.words)" : "")
                                     .font(.system(size: 9)).foregroundStyle(.secondary)
                                 RoundedRectangle(cornerRadius: 3)
-                                    .fill(day.words > 0 ? Color.accentColor : Color.primary.opacity(0.08))
+                                    .fill(day.words > 0 ? brandGreen : Color.primary.opacity(0.08))
                                     .frame(height: max(4, CGFloat(day.words) / CGFloat(maxWords) * 120))
                                 Text(day.label.prefix(1))
                                     .font(.system(size: 9)).foregroundStyle(.secondary)
@@ -347,7 +355,7 @@ struct InsightsView: View {
                                     Text(app).frame(width: 140, alignment: .leading).lineLimit(1)
                                     GeometryReader { geo in
                                         RoundedRectangle(cornerRadius: 3)
-                                            .fill(Color.accentColor.opacity(0.7))
+                                            .fill(brandGreen.opacity(0.7))
                                             .frame(width: max(4, geo.size.width * CGFloat(words) / CGFloat(maxApp)))
                                     }
                                     .frame(height: 14)
@@ -578,7 +586,7 @@ struct ModeEditor: View {
                     store.updateConfig { $0.activeModeID = mode.id }
                 } label: {
                     Image(systemName: isActive ? "largecircle.fill.circle" : "circle")
-                        .foregroundStyle(isActive ? Color.accentColor : .secondary)
+                        .foregroundStyle(isActive ? brandGreen : .secondary)
                 }
                 .buttonStyle(.borderless)
                 Text(mode.name)
