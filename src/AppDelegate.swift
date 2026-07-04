@@ -600,10 +600,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: menu bar
 
     func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: 28)
-        if let button = statusItem?.button {
-            button.image = NSApplication.shared.applicationIconImage
-            button.image?.size = NSSize(width: 18, height: 18)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = statusItem?.button, let appIcon = NSApplication.shared.applicationIconImage,
+           let icon = appIcon.copy() as? NSImage {
+            icon.size = NSSize(width: 18, height: 18)
+            button.image = icon
+            button.imagePosition = .imageLeft
         }
         statusItem.behavior = []
         statusItem.menu = NSMenu()
@@ -612,29 +614,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func updateUI() {
         guard let button = statusItem?.button else { return }
-        // Always use the app icon, but update the accessibility description
-        button.image = NSApplication.shared.applicationIconImage
-        button.image?.size = NSSize(width: 18, height: 18)
-
         if capturingHotkey != nil {
-            button.accessibilityLabel = "EchoType - Assign key"
             store.dictationState = "Assign key…"
+            button.title = " ?"
         } else if eventTap == nil {
-            button.accessibilityLabel = "EchoType - No keyboard access"
             store.dictationState = "No keyboard access"
+            button.title = " ⚠︎"
         } else {
             switch state {
             case .idle:
-                button.accessibilityLabel = "EchoType - Idle"
                 store.dictationState = "Idle"
+                button.title = ""
             case .recording:
-                button.accessibilityLabel = "EchoType - Recording"
                 store.dictationState = "Recording…"
+                button.attributedTitle = NSAttributedString(
+                    string: " ●",
+                    attributes: [.foregroundColor: NSColor.systemRed,
+                                 .font: NSFont.systemFont(ofSize: 12, weight: .bold)])
             case .transcribing:
-                button.accessibilityLabel = "EchoType - Transcribing"
                 store.dictationState = "Transcribing…"
+                button.title = " …"
             }
         }
+        button.toolTip = "EchoType — \(store.dictationState)"
     }
 
     func rebuildMenu(_ menu: NSMenu) {
