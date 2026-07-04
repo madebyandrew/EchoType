@@ -24,6 +24,43 @@ enum Injector {
         }
     }
 
+    /// Copies the current selection in the frontmost app (simulated ⌘C) and
+    /// hands it to `completion`; empty string when nothing is selected.
+    /// The user's clipboard is restored afterwards.
+    static func copySelection(completion: @escaping (String) -> Void) {
+        let pb = NSPasteboard.general
+        let savedItems = pb.pasteboardItems?.compactMap { item -> [NSPasteboard.PasteboardType: Data]? in
+            var copy: [NSPasteboard.PasteboardType: Data] = [:]
+            for t in item.types { if let d = item.data(forType: t) { copy[t] = d } }
+            return copy.isEmpty ? nil : copy
+        } ?? []
+        let beforeCount = pb.changeCount
+        pb.clearContents()
+
+        guard let src = CGEventSource(stateID: .combinedSessionState) else { completion(""); return }
+        src.userData = injectionMagic
+        if let down = CGEvent(keyboardEventSource: src, virtualKey: 8, keyDown: true) {  // C
+            down.flags = .maskCommand
+            down.post(tap: .cgSessionEventTap)
+        }
+        if let up = CGEvent(keyboardEventSource: src, virtualKey: 8, keyDown: false) {
+            up.flags = .maskCommand
+            up.post(tap: .cgSessionEventTap)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            let selection = pb.changeCount > beforeCount + 1
+                ? (pb.string(forType: .string) ?? "") : ""
+            pb.clearContents()
+            for itemData in savedItems {
+                let item = NSPasteboardItem()
+                for (t, d) in itemData { item.setData(d, forType: t) }
+                pb.writeObjects([item])
+            }
+            completion(selection)
+        }
+    }
+
     static func paste(_ text: String) {
         let pb = NSPasteboard.general
         let saved = pb.pasteboardItems?.compactMap { item -> [NSPasteboard.PasteboardType: Data]? in
