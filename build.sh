@@ -8,8 +8,8 @@ BIN="$APP/Contents/MacOS/FlowLocal"
 
 echo "Compiling…"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-swiftc -O -o "$BIN" src/main.swift \
-    -framework Cocoa -framework AVFoundation
+swiftc -O -o "$BIN" src/*.swift \
+    -framework Cocoa -framework AVFoundation -framework SwiftUI -lsqlite3
 
 cp src/Info.plist "$APP/Contents/Info.plist"
 
