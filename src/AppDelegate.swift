@@ -600,8 +600,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: menu bar
 
     func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "🎙️"
+        statusItem = NSStatusBar.system.statusItem(withLength: 36)
+        if let button = statusItem?.button {
+            button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "EchoType")
+            button.image?.isTemplate = true
+        }
         statusItem.behavior = []
         statusItem.menu = NSMenu()
         statusItem.menu?.delegate = self
@@ -610,16 +613,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func updateUI() {
         guard let button = statusItem?.button else { return }
         if capturingHotkey != nil {
-            button.title = "⌨️?"
+            button.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "Assign key")
             store.dictationState = "Assign key…"
         } else if eventTap == nil {
-            button.title = "🎙️⚠️"
+            button.image = NSImage(systemSymbolName: "waveform.slash", accessibilityDescription: "No keyboard access")
             store.dictationState = "No keyboard access"
         } else {
             switch state {
-            case .idle: button.title = "🎙️"; store.dictationState = "Idle"
-            case .recording: button.title = "🔴"; store.dictationState = "Recording…"
-            case .transcribing: button.title = "✍️"; store.dictationState = "Transcribing…"
+            case .idle:
+                button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Idle")
+                store.dictationState = "Idle"
+            case .recording:
+                button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Recording")
+                store.dictationState = "Recording…"
+            case .transcribing:
+                button.image = NSImage(systemSymbolName: "waveform.badge.magnifyingglass", accessibilityDescription: "Transcribing")
+                store.dictationState = "Transcribing…"
             }
         }
     }
