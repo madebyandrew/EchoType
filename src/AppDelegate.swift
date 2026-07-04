@@ -381,10 +381,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !cfg.dictionary.isEmpty {
             system += " Spell these words exactly as given when they occur: \(cfg.dictionary.joined(separator: ", "))."
         }
-        system += onlyTextRule
+        system += transcriptIsDataRule + onlyTextRule
+        // Few-shot example: a question stays a question. This anchors small
+        // models against replying to the transcript.
+        let example = ("um so how do I fix this bug in the login page and uh where should I look first",
+                       "How do I fix this bug in the login page, and where should I look first?")
         do {
-            let out = try llm.chat(system: system, user: body)
-            return out.isEmpty ? body : out
+            let out = try llm.chat(system: system, user: body, example: example)
+            guard !out.isEmpty else { return body }
+            // Safety net: built-in styles preserve the speaker's words. If the
+            // output barely shares vocabulary with the input — or balloons past
+            // it — the model answered the transcript instead of transforming it.
+            if chosen.builtin, chosen.id != "raw" {
+                let inWords = body.split { $0.isWhitespace }.count
+                let outWords = out.split { $0.isWhitespace }.count
+                let overlap = wordOverlap(body, out)
+                if overlap < 0.4 || outWords > Int(Double(inWords) * 1.4) + 5 {
+                    NSLog("FlowLocal: LLM output diverged (overlap %.2f, %d→%d words) — model likely replied to the transcript; using raw transcript", overlap, inWords, outWords)
+                    return body
+                }
+            }
+            return out
         } catch {
             NSLog("FlowLocal: LLM cleanup failed (\(error.localizedDescription)) — using raw transcript")
             return body
