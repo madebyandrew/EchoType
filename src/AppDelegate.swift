@@ -3,6 +3,15 @@
 import Cocoa
 import SwiftUI
 import AVFoundation
+import QuartzCore
+
+// App background, shared with SwiftUI via appBackground in UI.swift:
+// near-black with a green tint (#060E0A) in dark mode, white in light mode.
+let appBackgroundNSColor = NSColor(name: nil) { appearance in
+    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        ? NSColor(srgbRed: 6 / 255, green: 14 / 255, blue: 10 / 255, alpha: 1)
+        : NSColor.white
+}
 
 enum AppState { case idle, recording, transcribing }
 enum SessionKind { case dictation, rewrite }
@@ -76,14 +85,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let w = NSWindow(contentViewController: hosting)
             w.title = "EchoType"
             w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+            w.titlebarAppearsTransparent = true
+            w.backgroundColor = appBackgroundNSColor
             w.setContentSize(NSSize(width: 920, height: 600))
             w.isReleasedWhenClosed = false
+            // Follow the user: reopen on whatever Space/desktop they are on now,
+            // not the one the window was last closed on.
+            w.collectionBehavior = [.moveToActiveSpace]
             w.center()
             window = w
         }
         store.reloadAll()
-        NSApp.activate(ignoringOtherApps: true)
+        // Accessory apps can be denied activation while another app is frontmost
+        // (cooperative activation, macOS 14+), which leaves the window buried
+        // behind the active app when the user reopens EchoType. Force activation,
+        // and briefly float the window above all normal windows so it is visible
+        // even when activation is refused.
+        NSRunningApplication.current.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
         window?.makeKeyAndOrderFront(nil)
+        window?.level = .floating
+        window?.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.window?.level = .normal
+        }
     }
 
     func applyAppearance() {
@@ -292,7 +316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             state = .recording
             if config.soundFeedback { NSSound(named: "Pop")?.play() }
             if config.livePreview {
-                previewHUD.show(kind == .dictation ? "🔴 Listening…" : "🔴 Speak your instruction…")
+                previewHUD.show(kind == .dictation ? "Listening…" : "Speak your instruction…")
                 previewTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
                     self?.updatePreview()
                 }
@@ -334,7 +358,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let duration = Double(samples.count) / 16000.0
         state = .transcribing
         updateUI()
-        if config.livePreview { previewHUD.show("✍️ Working locally…") }
+        if config.livePreview { previewHUD.show("Working locally…") }
 
         let cfg = config
         workQueue.async {
@@ -408,7 +432,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard self.state == .recording else { return }
                 let text = cleanTranscript(raw, removeFillers: false)
                 if !text.isEmpty {
-                    self.previewHUD.show("🔴 …" + String(text.suffix(110)))
+                    self.previewHUD.show("…" + String(text.suffix(110)))
                 }
             }
         }
@@ -732,12 +756,33 @@ final class PreviewHUD {
         effect.material = .hudWindow
         effect.state = .active
         effect.wantsLayer = true
-        effect.layer?.cornerRadius = 14
+        effect.layer?.cornerRadius = 26
         effect.layer?.masksToBounds = true
+        effect.layer?.borderWidth = 1.5
+        effect.layer?.borderColor = NSColor(srgbRed: 141 / 255, green: 220 / 255, blue: 175 / 255, alpha: 0.85).cgColor
+
+        // Deep-green glass tint over the blur.
+        let tint = CALayer()
+        tint.frame = effect.bounds
+        tint.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
+        tint.backgroundColor = NSColor(srgbRed: 8 / 255, green: 46 / 255, blue: 27 / 255, alpha: 0.6).cgColor
+        effect.layer?.addSublayer(tint)
+
+        // Gloss highlight fading down from the top edge.
+        let gloss = CAGradientLayer()
+        gloss.frame = effect.bounds
+        gloss.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
+        gloss.colors = [NSColor.white.withAlphaComponent(0.28).cgColor,
+                        NSColor.white.withAlphaComponent(0.06).cgColor,
+                        NSColor.clear.cgColor]
+        gloss.locations = [0, 0.35, 1]
+        gloss.startPoint = CGPoint(x: 0.5, y: 0)
+        gloss.endPoint = CGPoint(x: 0.5, y: 1)
+        effect.layer?.addSublayer(gloss)
 
         label = NSTextField(labelWithString: "")
         label.font = .systemFont(ofSize: 14, weight: .medium)
-        label.textColor = .labelColor
+        label.textColor = .white
         label.lineBreakMode = .byTruncatingHead
         label.maximumNumberOfLines = 2
         label.alignment = .center
