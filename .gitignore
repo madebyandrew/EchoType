@@ -1,5 +1,7 @@
 # Build output (users build locally with ./build.sh)
 EchoType.app/
+EchoType.dmg
+EchoType.zip
 
 # Whisper models are too large for git — README has the download command
 models/*.bin

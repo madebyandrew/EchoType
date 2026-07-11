@@ -25,14 +25,21 @@ The whole app is a single Swift file — [src/main.swift](src/main.swift).
 ## Requirements
 
 - Apple Silicon Mac (M1 or later), macOS 13+
-- Xcode command-line tools (`xcode-select --install`)
-- [Homebrew](https://brew.sh)
 
 ## Install
 
+One command — installs Homebrew and whisper-cpp if you don't already have
+them, downloads EchoType, and launches it:
+
 ```sh
-git clone https://github.com/YOURUSER/echotype.git
-cd echotype
+curl -fsSL https://raw.githubusercontent.com/madebyandrew/EchoType/main/install.sh | bash
+```
+
+### Build from source instead
+
+```sh
+git clone https://github.com/madebyandrew/EchoType.git
+cd EchoType
 brew install whisper-cpp
 curl -L -o models/ggml-base.en.bin \
   https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
@@ -48,12 +55,14 @@ open EchoType.app
    granted, then switches to **🎙️** — no relaunch needed.
 2. **Microphone** — prompted the first time you record.
 
-> **Note on rebuilding:** Each time you run `./build.sh`, the code signature
-> changes (even though the bundle ID stays the same). macOS ties Accessibility
-> permissions to the code signature for security, so the grant is invalidated
-> after rebuild. To re-grant: System Settings → Accessibility → toggle EchoType
-> back on. You can also run `tccutil reset Accessibility local.echotype.app`
-> from the terminal to clear the old grant, then toggle it on again.
+> **Note on rebuilding:** `./build.sh` signs the app with your Apple
+> Development / Developer ID certificate when one is available. That signature's
+> identity is stable across rebuilds, so macOS keeps the Accessibility grant.
+> Without a certificate it falls back to ad-hoc signing, where the signature
+> changes with every build and macOS invalidates the grant each time. To
+> re-grant: System Settings → Accessibility → toggle EchoType back on. If the
+> toggle doesn't take, run `tccutil reset Accessibility local.echotype.app`
+> to clear the stale grant, then toggle it on again.
 
 ## Usage
 

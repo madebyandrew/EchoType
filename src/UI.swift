@@ -4,6 +4,8 @@ import SwiftUI
 
 /// Brand green from the app icon — the accent for both light and dark themes.
 let brandGreen = Color(red: 0.16, green: 0.62, blue: 0.39)
+// App background: near-black with a green tint (#060E0A) in dark mode, white in light mode.
+let appBackground = Color(nsColor: appBackgroundNSColor)
 
 // MARK: - Store (bridges AppDelegate ↔ SwiftUI)
 
@@ -135,6 +137,8 @@ struct ContentView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(appBackground)
             .navigationSplitViewColumnWidth(min: 170, ideal: 190)
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack(spacing: 8) {
@@ -176,6 +180,7 @@ struct ContentView: View {
                 }
             }
             .frame(minWidth: 540, minHeight: 440)
+            .background(appBackground)
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -426,6 +431,7 @@ struct HistoryView: View {
                     }
                 }
                 .listStyle(.inset)
+                .scrollContentBackground(.hidden)
             }
         }
         .onAppear { store.reloadEntries() }
@@ -537,6 +543,7 @@ struct ModesView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 }
 
@@ -631,6 +638,7 @@ struct DictionaryView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     private func addWord() {
@@ -666,6 +674,7 @@ struct SnippetsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 }
 
@@ -800,6 +809,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     private func bind(_ get: KeyPath<AppStore, Bool>, _ set: @escaping (inout Config, Bool) -> Void) -> Binding<Bool> {

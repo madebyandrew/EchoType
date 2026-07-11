@@ -20,8 +20,12 @@ if [[ -f models/ggml-base.en.bin && ! -f "$APP/Contents/Resources/ggml-base.en.b
     cp models/ggml-base.en.bin "$APP/Contents/Resources/"
 fi
 
-# Ad-hoc signature keeps TCC permissions (mic/accessibility) stable across rebuilds.
-codesign --force --sign - "$APP"
+# Sign with a real identity when available: its designated requirement is based on
+# the team + bundle ID, so TCC grants (mic/accessibility) survive rebuilds.
+# Ad-hoc signatures change with every binary change, invalidating grants each build.
+IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')"
+codesign --force --sign "${IDENTITY:--}" "$APP"
+echo "Signed with: ${IDENTITY:-ad-hoc}"
 
 echo "Built $APP"
 echo "Run:   open $APP"
