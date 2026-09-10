@@ -3,6 +3,8 @@
 **Private, fully-local push-to-talk dictation for macOS.** Hold a key anywhere,
 speak, release — your words appear at the cursor in whatever app you're using.
 
+**[echotype website & download →](https://madebyandrew.github.io/EchoType/)**
+
 A free, open-source alternative to Wispr Flow with one crucial difference:
 **everything runs on your Mac.** Speech is transcribed on-device by
 [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (Metal-accelerated on
