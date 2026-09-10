@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EchoType — Dictation that never leaves your Mac</title>
+  <meta name="description" content="Free, open-source push-to-talk dictation for macOS. Hold a key, speak, release — transcribed on-device by Whisper. Zero network calls, zero accounts, zero subscription.">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="EchoType — Dictation that never leaves your Mac">
+  <meta property="og:description" content="Free, open-source push-to-talk dictation for macOS. Transcribed on-device by Whisper. Zero network calls, zero accounts, zero subscription.">
+  <!-- TODO: replace og-image.png with a real 1200x630 social card -->
+  <meta property="og:image" content="og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- TODO: replace with a real favicon.ico / PNG set -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23000000'/%3E%3Cg fill='none' stroke-linecap='round'%3E%3Cpath stroke='%23255D41' stroke-width='3' d='M7 13v6'/%3E%3Cpath stroke='%2340A271' stroke-width='3' d='M13 9v14'/%3E%3Cpath stroke='%2340A271' stroke-width='3' d='M19 6v20'/%3E%3Cpath stroke='%23255D41' stroke-width='3' d='M25 12v8'/%3E%3C/g%3E%3C/svg%3E">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="nav" id="nav">
+    <div class="nav-inner">
+      <a class="brand" href="#top" aria-label="EchoType home">
+        <svg class="brand-mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+          <rect width="32" height="32" rx="7" fill="var(--green-shadow-2)"/>
+          <g fill="none" stroke-linecap="round">
+            <path stroke="var(--green-dark)" stroke-width="3" d="M7 13v6"/>
+            <path stroke="var(--green-bright)" stroke-width="3" d="M13 9v14"/>
+            <path stroke="var(--green-bright)" stroke-width="3" d="M19 6v20"/>
+            <path stroke="var(--green-dark)" stroke-width="3" d="M25 12v8"/>
+          </g>
+        </svg>
+        <span class="brand-name">EchoType</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/madebyandrew/EchoType" class="nav-github" aria-label="EchoType on GitHub">
+          <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </nav>
+      <a class="btn btn-primary btn-sm nav-cta" href="#download">Download</a>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="top">
+      <div class="container">
+        <h1 class="hero-title">Dictation that <span class="hl">never <br>leaves</span> your&nbsp;Mac.</h1>
+        <p class="hero-sub">Free, open-source push-to-talk dictation for macOS. Hold a key anywhere, speak, release — your words type themselves at the cursor. Transcribed on-device by Whisper. Zero network calls, zero accounts, zero subscription.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" href="#download">Download for Mac — free</a>
+          <div class="hero-soon">
+            <span aria-disabled="true">Windows — coming soon</span>
+            <span class="soon-dot" aria-hidden="true">·</span>
+            <span aria-disabled="true">Linux — coming soon</span>
+          </div>
+        </div>
+
+        <!-- Signature hero demo -->
+        <div class="demo" role="img" aria-label="Animated demo: hold a key, speak, and EchoType types the words at your cursor">
+          <div class="demo-menubar" aria-hidden="true">
+            <span class="demo-menubar-apps">Mail &nbsp;·&nbsp; Terminal &nbsp;·&nbsp; Slack</span>
+            <span class="demo-status mono" id="demo-status"><span class="demo-status-icon" id="demo-status-icon"></span><span id="demo-status-text">Idle</span></span>
+          </div>
+          <div class="demo-window">
+            <div class="demo-titlebar" aria-hidden="true">
+              <span class="tl-dot tl-red"></span><span class="tl-dot tl-yellow"></span><span class="tl-dot tl-green"></span>
+              <span class="demo-titlebar-name mono">notes.md — anywhere you type</span>
+            </div>
+            <div class="demo-body">
+              <p class="demo-text"><span id="demo-typed">Ship the update tonight — the whole pipeline runs on this Mac, so nothing ever leaves it.</span><span class="demo-caret" aria-hidden="true"></span></p>
+            </div>
+            <div class="demo-footer" aria-hidden="true">
+              <div class="waveform" id="waveform">
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <div class="demo-key">
+                <span class="keycap keycap-sm" id="demo-keycap">⌥</span>
+                <span class="demo-key-label mono">hold to talk</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="trust-strip mono">Open source&ensp;·&ensp;MIT license&ensp;·&ensp;Zero network calls&ensp;·&ensp;Apple Silicon native</p>
+
+        <div class="apps-marquee" aria-hidden="true">
+          <div class="apps-track">
+            <span>Mail</span><span>Safari</span><span>VS Code</span><span>Terminal</span><span>Slack</span><span>Notion</span><span>Obsidian</span><span>Xcode</span><span>Messages</span><span>Chrome</span><span>Pages</span><span>Discord</span>
+            <span>Mail</span><span>Safari</span><span>VS Code</span><span>Terminal</span><span>Slack</span><span>Notion</span><span>Obsidian</span><span>Xcode</span><span>Messages</span><span>Chrome</span><span>Pages</span><span>Discord</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HOW IT WORKS ============ -->
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="container">
+        <h2 class="section-title" id="how-title">Three moves. No new habits.</h2>
+        <div class="steps">
+          <div class="step reveal">
+            <span class="step-ghost" aria-hidden="true">01</span>
+            <div class="step-visual"><span class="keycap">⌥</span></div>
+            <h3><span class="step-num mono">1</span>Hold a key</h3>
+            <p>Any key you choose. Right&nbsp;Option by default.</p>
+          </div>
+          <div class="step reveal">
+            <span class="step-ghost" aria-hidden="true">02</span>
+            <div class="step-visual">
+              <span class="mini-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            </div>
+            <h3><span class="step-num mono">2</span>Speak</h3>
+            <p>Anywhere your cursor is: email, editor, terminal, Slack.</p>
+          </div>
+          <div class="step reveal">
+            <span class="step-ghost" aria-hidden="true">03</span>
+            <div class="step-visual"><span class="typed-chip mono">already typed<i class="chip-caret"></i></span></div>
+            <h3><span class="step-num mono">3</span>Release</h3>
+            <p>Your words appear at the cursor, already typed.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PRIVACY ============ -->
+    <section class="section section-elevated" id="privacy" aria-labelledby="privacy-title">
+      <div class="container">
+        <p class="eyebrow mono">Privacy</p>
+        <h2 class="section-title" id="privacy-title">Private by architecture, <br>not by promise.</h2>
+        <div class="privacy-copy">
+          <p>Every popular dictation app today ships your voice to someone else's servers. Some also take screenshots of your screen for “context.” You're asked to trust a privacy policy — a document that can change — instead of an architecture that can't.</p>
+          <p>EchoType takes the opposite bet: <strong>the most private data pipeline is the one that doesn't exist.</strong> Your voice is transcribed on-device by Whisper, Metal-accelerated on your own GPU. There is no cloud. There is no account. The app makes zero network calls — unplug your Wi-Fi and it works exactly the same, because the internet was never part of the pipeline. The temporary audio file is deleted the moment transcription finishes.</p>
+        </div>
+
+        <div class="pipes">
+          <div class="pipe pipe-cloud reveal">
+            <p class="pipe-title mono">Cloud dictation</p>
+            <div class="pipe-flow" role="img" aria-label="Cloud dictation pipeline: microphone, to the internet, to their servers, back to your screen">
+              <span class="pipe-node">Mic</span><span class="pipe-arrow" aria-hidden="true">→</span>
+              <span class="pipe-node">Internet</span><span class="pipe-arrow" aria-hidden="true">→</span>
+              <span class="pipe-node">Their servers</span><span class="pipe-arrow" aria-hidden="true">→</span>
+              <span class="pipe-node">Your screen</span>
+            </div>
+            <p class="pipe-note">Your voice, in transit, on hardware you'll never see.</p>
+          </div>
+          <div class="pipe pipe-local reveal">
+            <p class="pipe-title mono">EchoType</p>
+            <div class="pipe-flow" role="img" aria-label="EchoType pipeline: microphone, to your GPU, to your cursor">
+              <span class="pipe-node">Mic</span><span class="pipe-arrow" aria-hidden="true">→</span>
+              <span class="pipe-node">Your GPU</span><span class="pipe-arrow" aria-hidden="true">→</span>
+              <span class="pipe-node">Your cursor</span>
+            </div>
+            <p class="pipe-note">Three inches of travel. Zero network calls.</p>
+          </div>
+        </div>
+
+        <div class="oss-card reveal">
+          <div class="oss-card-text">
+            <h3>Don't take our word for it — read the source.</h3>
+            <p>Not “open core,” not a black-box binary with a public wrapper — the whole thing. One readable Swift file, MIT license. If you can read code, audit it in an afternoon. If you can't, know that thousands of people who can, can.</p>
+          </div>
+          <a class="btn btn-secondary" href="https://github.com/madebyandrew/EchoType">View on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES ============ -->
+    <section class="section" id="features" aria-labelledby="features-title">
+      <div class="container">
+        <p class="eyebrow mono">Features</p>
+        <h2 class="section-title" id="features-title">Small app. Sharp edges filed off.</h2>
+        <p class="fan-hint mono" aria-hidden="true">hover a card</p>
+        <div class="fan-layout" id="feature-fan">
+          <article class="fan-card" tabindex="0">
+            <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M9 5h6M9 19h6"/></svg></div>
+            <h3>Works everywhere your cursor does.</h3>
+            <p>Any text field in any app — native, Electron, browser, terminal. If you can type there, you can speak there.</p>
+          </article>
+          <article class="fan-card" tabindex="0">
+            <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="3"/><path d="M9 14h6"/></svg></div>
+            <h3>Any key you want.</h3>
+            <p>Right Option is the default, but assign anything: F-keys, Fn, Right Command. Press-and-hold, or use Toggle Mode.</p>
+          </article>
+          <article class="fan-card" tabindex="0">
+            <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17a8 8 0 1 1 14 0"/><path d="M12 13l3.5-3.5"/></svg></div>
+            <h3>Fast by default, accurate on demand.</h3>
+            <p>Keeps up with conversation. Want more accuracy or another language? Point the config at a bigger Whisper model.</p>
+          </article>
+          <article class="fan-card" tabindex="0">
+            <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5l1.5 4L17 10.5l-4.5 1.5L11 16l-1.5-4L5 10.5 9.5 9z"/><path d="M18 4.5v3M16.5 6h3"/></svg></div>
+            <h3>Cleans up after you.</h3>
+            <p>Optional filler-word removal strips the ums and uhs, so the page reads like you meant it.</p>
+          </article>
+          <article class="fan-card" tabindex="0">
+            <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="12" height="16" rx="2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg></div>
+            <h3>Long dictations, instantly.</h3>
+            <p>Paste mode inserts everything at once via ⌘V — and politely restores your clipboard after.</p>
+          </article>
+          <article class="fan-card" tabindex="0">
+            <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/><circle cx="17.5" cy="7" r="1" fill="currentColor" stroke="none"/></svg></div>
+            <h3>Stays out of the way.</h3>
+            <p>It's a menu bar icon. Recording shows 🔴, transcribing shows ✍️ — that's the whole interface.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ANTI-FEATURES ============ -->
+    <section class="section section-elevated" id="not" aria-labelledby="not-title">
+      <div class="container container-narrow">
+        <h2 class="section-title" id="not-title">What EchoType doesn't have — <br>on purpose.</h2>
+        <ul class="not-list" role="list">
+          <li><s>subscription</s></li>
+          <li><s>account</s></li>
+          <li><s>onboarding email sequence</s></li>
+          <li><s>telemetry</s></li>
+          <li><s>analytics</s></li>
+          <li><s>crash reporting phoning home</s></li>
+          <li><s>“we've updated our privacy policy” notifications</s></li>
+        </ul>
+        <p class="not-closer">It's a tool, not a relationship.</p>
+      </div>
+    </section>
+
+    <!-- ============ WHO IT'S FOR ============ -->
+    <section class="section" id="who" aria-labelledby="who-title">
+      <div class="container">
+        <p class="eyebrow mono">Who it's for</p>
+        <h2 class="section-title" id="who-title">Built for people with better things to&nbsp;type.</h2>
+        <div class="who-grid">
+          <div class="who-card reveal">
+            <h3>Writers</h3>
+            <p>Who think faster than they type — first drafts at the speed of speech.</p>
+          </div>
+          <div class="who-card reveal">
+            <h3>Developers</h3>
+            <p>Who want dictation in the terminal without a cloud round-trip.</p>
+          </div>
+          <div class="who-card reveal">
+            <h3>Anyone with RSI</h3>
+            <p>Who needs their hands back. Speak the words; keep the wrists.</p>
+          </div>
+          <div class="who-card reveal">
+            <h3>Sensitive work</h3>
+            <p>Lawyers, doctors, journalists — for whom “we promise not to look” isn't good enough.</p>
+          </div>
+        </div>
+        <p class="who-closer">And anyone tired of paying monthly rent for a feature their Mac's own GPU can do for free.</p>
+      </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section class="section" id="faq" aria-labelledby="faq-title">
+      <div class="container container-narrow">
+        <p class="eyebrow mono">FAQ</p>
+        <h2 class="section-title" id="faq-title">Questions, answered plainly.</h2>
+        <div class="faq-list">
+          <details>
+            <summary>Is it really free?<span class="faq-icon" aria-hidden="true"></span></summary>
+            <p>Yes. Free and MIT-licensed. No trial, no pro tier, no catch.</p>
+          </details>
+          <details>
+            <summary>What are the requirements?<span class="faq-icon" aria-hidden="true"></span></summary>
+            <p>Apple Silicon Mac (M1 or later), macOS 13+.</p>
+          </details>
+          <details>
+            <summary>What permissions does it need?<span class="faq-icon" aria-hidden="true"></span></summary>
+            <p>Two: Accessibility (to hear your key and type for you) and Microphone. Both explained in plain language on first run, both revocable anytime in System Settings.</p>
+          </details>
+          <details>
+            <summary>Does any audio ever leave my Mac?<span class="faq-icon" aria-hidden="true"></span></summary>
+            <p>No. Zero network calls. Transcription runs on your GPU via Whisper; the temporary audio file is deleted the moment transcription finishes.</p>
+          </details>
+          <details>
+            <summary>Is there a Windows or Linux version?<span class="faq-icon" aria-hidden="true"></span></summary>
+            <p>Not yet — EchoType is built natively for Apple Silicon. <a href="https://github.com/madebyandrew/EchoType">Star the GitHub repo</a> to follow progress.</p>
+          </details>
+          <details>
+            <summary>Can I use other languages or bigger models?<span class="faq-icon" aria-hidden="true"></span></summary>
+            <p>Yes — point the config at any Whisper model. One download, one line.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FINAL CTA ============ -->
+    <section class="section final-cta" id="download" aria-labelledby="cta-title">
+      <div class="container">
+        <div class="final-cta-card">
+          <h2 id="cta-title">Hold a key. Say what you mean. <br>It's already typed.</h2>
+
+          <p class="dl-lead">Paste this in Terminal. It downloads EchoType, installs it, and opens it — no Homebrew, no dependencies, no security warnings.</p>
+          <div class="dl-cmd dl-cmd-lg">
+            <code class="mono">curl -fsSL https://raw.githubusercontent.com/madebyandrew/EchoType/main/install.sh | bash</code>
+            <button class="dl-copy mono" type="button"
+              data-copy="curl -fsSL https://raw.githubusercontent.com/madebyandrew/EchoType/main/install.sh | bash">Copy</button>
+          </div>
+          <p class="dl-meta mono">Apple Silicon · macOS 13+ · ~130&nbsp;MB · MIT licensed · everything runs on your Mac</p>
+
+          <div class="dl-steps">
+            <p class="dl-steps-title mono">Or download the app manually</p>
+            <p class="dl-steps-note">
+              <a href="https://github.com/madebyandrew/EchoType/releases/latest/download/EchoType.zip">Download EchoType.zip</a>,
+              unzip it, and drag <span class="mono">EchoType.app</span> to Applications.
+              The first time you open it, macOS blocks it because EchoType isn't
+              notarized yet: click <strong>Done</strong>, then open
+              <strong>System&nbsp;Settings → Privacy&nbsp;&amp;&nbsp;Security</strong>,
+              scroll down, and click <strong>Open&nbsp;Anyway</strong>. One time only.
+              The command above skips this entirely.
+            </p>
+          </div>
+
+          <p class="final-cta-links mono">
+            <span aria-disabled="true">Windows / Linux — coming soon</span>
+            <span class="soon-dot" aria-hidden="true">·</span>
+            <a href="https://github.com/madebyandrew/EchoType">GitHub</a>
+            <span class="soon-dot" aria-hidden="true">·</span>
+            <a href="https://github.com/madebyandrew/EchoType/releases">All releases</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+          <rect width="32" height="32" rx="7" fill="var(--green-shadow-2)"/>
+          <g fill="none" stroke-linecap="round">
+            <path stroke="var(--green-dark)" stroke-width="3" d="M7 13v6"/>
+            <path stroke="var(--green-bright)" stroke-width="3" d="M13 9v14"/>
+            <path stroke="var(--green-bright)" stroke-width="3" d="M19 6v20"/>
+            <path stroke="var(--green-dark)" stroke-width="3" d="M25 12v8"/>
+          </g>
+        </svg>
+        <span class="brand-name">EchoType</span>
+        <span class="footer-meta mono">MIT licensed · Made for macOS</span>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://github.com/madebyandrew/EchoType">GitHub</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/madebyandrew/EchoType/issues">Contact</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
