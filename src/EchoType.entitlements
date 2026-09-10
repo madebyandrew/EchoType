@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Hardened Runtime entitlements for Developer ID + notarization.
+	     EchoType is NOT sandboxed — it needs Accessibility and a global event
+	     tap, which the App Sandbox forbids — so this list is deliberately tiny.
+
+	     Microphone is still gated by the TCC prompt; this key just permits it
+	     under the Hardened Runtime. Spawning the bundled whisper-cli /
+	     whisper-server needs no entitlement (they are separately-signed
+	     executables). Loading the bundled dylibs needs none either, because
+	     vendor-whisper.sh signs them with the same Developer ID identity, so
+	     library validation passes. -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+</dict>
+</plist>

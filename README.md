@@ -70,8 +70,21 @@ open EchoType.app
 `build.sh` compiles `src/*.swift`, bundles the model, runs
 [`vendor-whisper.sh`](vendor-whisper.sh) to copy the whisper.cpp binaries + their
 dylibs into `EchoType.app/Contents/Resources/whisper/` (install names rewritten to
-`@rpath` so they're relocatable), and code-signs the bundle. Set `RELEASE=1` to
-force ad-hoc signing for a portable build; `./release.sh` does this and zips it.
+`@rpath` so they're relocatable), and code-signs the bundle.
+
+### Cutting a release (maintainers)
+
+- **`./notarize.sh`** — Developer ID–signed, Apple-notarized, stapled
+  `EchoType.zip`. Downloads open with a plain double-click, no Gatekeeper
+  warning. One-time setup (a Developer ID certificate + `notarytool
+  store-credentials`) is documented at the top of the script.
+- **`./release.sh`** — ad-hoc `EchoType.zip` (fallback until notarization is set
+  up). The [one-command installer](#option-a--one-command-recommended) opens it
+  cleanly; a manual download needs a one-time *Open Anyway* in System Settings.
+
+Then `gh release create vX.Y.Z EchoType.zip …`. The website and installer both
+pull `releases/latest/download/EchoType.zip`, so they pick up new releases
+automatically.
 
 ---
 
@@ -119,7 +132,7 @@ the switch it **starts working immediately — no relaunch needed**.
 > If the Accessibility toggle won't stick (common with ad-hoc-signed builds after
 > a rebuild), clear the stale grant and re-add it:
 > ```sh
-> tccutil reset Accessibility local.echotype.app
+> tccutil reset Accessibility com.echotype.app
 > ```
 > then toggle EchoType back on.
 
@@ -225,7 +238,7 @@ Open config file**).
 
 | Symptom | Fix |
 |---|---|
-| Menu bar icon has a **⚠︎**, nothing happens on the key | Accessibility not granted. System Settings → Privacy & Security → Accessibility → turn on EchoType. If it's already on, toggle it off/on, or run `tccutil reset Accessibility local.echotype.app` and re-add it. |
+| Menu bar icon has a **⚠︎**, nothing happens on the key | Accessibility not granted. System Settings → Privacy & Security → Accessibility → turn on EchoType. If it's already on, toggle it off/on, or run `tccutil reset Accessibility com.echotype.app` and re-add it. |
 | "Apple could not verify EchoType is free of malware…" (only *Done* / *Move to Trash*) | Not notarized (free app). Click Done, then **System Settings → Privacy & Security → Open Anyway**. Or run `xattr -dr com.apple.quarantine /Applications/EchoType.app`. Once only. See [First launch & Gatekeeper](#1-launch-it). |
 | Recording works but no text appears | The target field must have keyboard focus. Some secure fields (passwords) reject synthetic input by design. Try **Settings → Insertion → Insert by pasting**. |
 | **Settings → Engine** shows an error | The bundled `whisper-server` failed to start. Quit and reopen EchoType. If it persists, the app still transcribes via the bundled `whisper-cli` (slightly slower cold start) — check Console for `EchoType: whisper` logs. |

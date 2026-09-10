@@ -15,6 +15,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP="${1:-EchoType.app}"
+IDENTITY="${2:--}"          # codesign identity, or "-" for ad-hoc
+HARDENED="${3:-0}"          # 1 → sign helpers with the Hardened Runtime
 DEST="$APP/Contents/Resources/whisper"
 
 realpath_py() { /usr/bin/python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
@@ -75,11 +77,18 @@ for b in "$DEST"/bin/*; do
 done
 
 # --- re-sign (install_name_tool invalidates signatures) ---
-# Ad-hoc is right here regardless of build type: these are third-party binaries
-# run as a subprocess, not the app itself, so they don't need a stable identity
-# for TCC. build.sh re-seals them into the bundle afterwards.
+# For a Developer ID + notarized build the helpers must be signed with the same
+# identity and the Hardened Runtime, or notarization rejects them. For dev / ad-hoc
+# builds a plain signature is fine (they run as a subprocess, not the app).
+if [[ "$IDENTITY" != "-" && "$HARDENED" == "1" ]]; then
+    SIGN=(--force --timestamp --options runtime --sign "$IDENTITY")
+elif [[ "$IDENTITY" != "-" ]]; then
+    SIGN=(--force --timestamp=none --sign "$IDENTITY")
+else
+    SIGN=(--force --timestamp=none --sign -)
+fi
 for f in "$DEST"/lib/*.dylib "$DEST"/bin/*; do
-    codesign --force --timestamp=none --sign - "$f"
+    codesign "${SIGN[@]}" "$f"
 done
 
 # --- sanity check: nothing may still point outside the bundle ---
