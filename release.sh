@@ -7,7 +7,9 @@ cd "$(dirname "$0")"
 APP="EchoType.app"
 ZIP="EchoType.zip"
 
-[[ -d "$APP" ]] || ./build.sh
+# Always rebuild for a release so the app is ad-hoc signed (portable across Macs)
+# rather than signed with a local "Apple Development" cert that Gatekeeper rejects.
+RELEASE=1 ./build.sh
 
 rm -f "$ZIP"
 echo "Zipping $APP…"

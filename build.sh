@@ -20,11 +20,32 @@ if [[ -f models/ggml-base.en.bin && ! -f "$APP/Contents/Resources/ggml-base.en.b
     cp models/ggml-base.en.bin "$APP/Contents/Resources/"
 fi
 
-# Sign with a real identity when available: its designated requirement is based on
-# the team + bundle ID, so TCC grants (mic/accessibility) survive rebuilds.
-# Ad-hoc signatures change with every binary change, invalidating grants each build.
-IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')"
-codesign --force --sign "${IDENTITY:--}" "$APP"
+# Bundle the whisper.cpp engine + its dylibs so the shipped app needs no
+# Homebrew. Requires `brew install whisper-cpp` on THIS build machine only.
+if command -v whisper-cli >/dev/null 2>&1; then
+    ./vendor-whisper.sh "$APP"
+elif [[ -x "$APP/Contents/Resources/whisper/bin/whisper-cli" ]]; then
+    echo "Keeping already-bundled whisper.cpp engine."
+else
+    echo "warning: whisper-cli not found — app will fall back to a system whisper-cli at runtime." >&2
+fi
+
+# Signing:
+#  - Local dev (default): use a real identity when available. Its designated
+#    requirement is team + bundle ID, so TCC grants (mic/accessibility) survive
+#    rebuilds. Ad-hoc signatures change every build and drop the grant.
+#  - Release (RELEASE=1): force ad-hoc. An "Apple Development" cert is NOT trusted
+#    by Gatekeeper on other people's Macs (spctl rejects it), so a Development-
+#    signed zip is worse for distribution than an ad-hoc one. A properly notarized
+#    "Developer ID" build is the real fix; ad-hoc + the installer's quarantine
+#    strip is the fallback until then.
+# --deep so the nested whisper binaries/dylibs are sealed with the bundle.
+if [[ "${RELEASE:-0}" == "1" ]]; then
+    IDENTITY=""
+else
+    IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')"
+fi
+codesign --force --deep --sign "${IDENTITY:--}" "$APP"
 echo "Signed with: ${IDENTITY:-ad-hoc}"
 
 echo "Built $APP"

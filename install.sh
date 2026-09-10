@@ -2,6 +2,11 @@
 # One-command installer for EchoType.
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/madebyandrew/EchoType/main/install.sh | bash
+#
+# The app is fully self-contained (the whisper.cpp speech engine and model are
+# bundled), so this just downloads it, drops it in /Applications, clears the
+# quarantine flag so macOS opens it without the "unverified developer" wall, and
+# launches it. No Homebrew, no dependencies.
 set -euo pipefail
 
 REPO="madebyandrew/EchoType"
@@ -13,26 +18,6 @@ if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
     exit 1
 fi
 
-# --- Homebrew: install if missing, or just load it into PATH if already there ---
-if ! command -v brew >/dev/null 2>&1; then
-    if [[ -x /opt/homebrew/bin/brew ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    else
-        echo "Installing Homebrew…"
-        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-        # Persist for future terminal sessions.
-        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.zprofile"
-    fi
-fi
-
-# --- whisper-cpp: the local speech-to-text engine EchoType shells out to ---
-if ! command -v whisper-cli >/dev/null 2>&1; then
-    echo "Installing whisper-cpp (speech engine)…"
-    brew install whisper-cpp
-fi
-
-# --- Download and install the app ---
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
@@ -44,9 +29,9 @@ ditto -x -k "$TMPDIR/$ZIP_NAME" "$TMPDIR/extracted"
 rm -rf "/Applications/${APP_NAME}"
 mv "$TMPDIR/extracted/${APP_NAME}" "/Applications/${APP_NAME}"
 
-# Downloaded via curl (not a browser), so this normally has no quarantine flag —
-# but strip it defensively in case a redirect ever routes through something that adds one.
-xattr -cr "/Applications/${APP_NAME}" 2>/dev/null || true
+# Downloaded via curl, so there is normally no quarantine flag — but strip it
+# defensively so macOS never shows the "Apple could not verify" dialog.
+xattr -dr com.apple.quarantine "/Applications/${APP_NAME}" 2>/dev/null || true
 
 echo
 echo "Installed! Opening EchoType…"
@@ -54,7 +39,7 @@ open "/Applications/${APP_NAME}"
 
 cat <<'EOF'
 
-Two one-time steps, both in System Settings → Privacy & Security:
+One-time setup — System Settings → Privacy & Security:
   1. Accessibility → turn on EchoType (needed for the push-to-talk key and typing).
   2. Allow the Microphone prompt the first time you record.
 

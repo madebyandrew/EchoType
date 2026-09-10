@@ -142,13 +142,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 config.multilingualModelPath = found
             }
         }
+        // whisper-cli / whisper-server: prefer the copy bundled inside the app
+        // (no Homebrew required), then fall back to a Homebrew install.
+        let bundledWhisper = Bundle.main.bundlePath + "/Contents/Resources/whisper/bin"
         for (keyPath, candidates) in [
-            (\Config.whisperCliPath, ["/opt/homebrew/bin/whisper-cli", "/usr/local/bin/whisper-cli"]),
-            (\Config.whisperServerPath, ["/opt/homebrew/bin/whisper-server", "/usr/local/bin/whisper-server"]),
+            (\Config.whisperCliPath, ["\(bundledWhisper)/whisper-cli",
+                                      "/opt/homebrew/bin/whisper-cli", "/usr/local/bin/whisper-cli"]),
+            (\Config.whisperServerPath, ["\(bundledWhisper)/whisper-server",
+                                         "/opt/homebrew/bin/whisper-server", "/usr/local/bin/whisper-server"]),
             (\Config.ollamaPath, ["/opt/homebrew/bin/ollama", "/usr/local/bin/ollama"]),
         ] as [(WritableKeyPath<Config, String>, [String])] {
-            if !fm.fileExists(atPath: config[keyPath: keyPath]),
-               let found = candidates.first(where: { fm.fileExists(atPath: $0) }) {
+            // Take the first candidate that exists, unless the current value is a
+            // valid path the user set to something off this list.
+            if let found = candidates.first(where: { fm.fileExists(atPath: $0) }),
+               !fm.fileExists(atPath: config[keyPath: keyPath]) || candidates.contains(config[keyPath: keyPath]) {
                 config[keyPath: keyPath] = found
             }
         }

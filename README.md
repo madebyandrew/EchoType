@@ -26,22 +26,19 @@ frameworks beyond Apple's own.
 ## Requirements
 
 - Apple Silicon Mac (M1 or later), macOS 13 (Ventura) or newer
-- [`whisper-cpp`](https://formulae.brew.sh/formula/whisper-cpp) — the on-device
-  speech engine EchoType shells out to. The one-command installer below sets it
-  up for you; if you download the app manually you install it yourself with one
-  `brew` command (see [Install](#install)).
+- **Nothing else.** The whisper.cpp speech engine (`whisper-cli` /
+  `whisper-server` and their libraries) and the `ggml-base.en` model (~148 MB)
+  are **bundled inside the app**. No Homebrew, no separate download.
 - *(Optional)* [Ollama](https://ollama.com) — only if you want the AI cleanup /
   writing styles / "rewrite selection" features. Dictation works fully without it.
-
-The Whisper speech model (`ggml-base.en`, ~148 MB) is **bundled inside the app** —
-nothing else to download to start dictating.
 
 ## Install
 
 ### Option A — one command (recommended)
 
-Installs Homebrew and `whisper-cpp` if you don't already have them, downloads the
-latest EchoType release, moves it to `/Applications`, and launches it:
+Downloads the latest release, moves it to `/Applications`, clears the quarantine
+flag so macOS opens it without the "unverified developer" prompt, and launches
+it:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/madebyandrew/EchoType/main/install.sh | bash
@@ -52,29 +49,29 @@ curl -fsSL https://raw.githubusercontent.com/madebyandrew/EchoType/main/install.
 1. Download **[EchoType.zip](https://github.com/madebyandrew/EchoType/releases/latest/download/EchoType.zip)**
    from the [latest release](https://github.com/madebyandrew/EchoType/releases/latest).
 2. Unzip it and drag **EchoType.app** to your **Applications** folder.
-3. Install the speech engine — one time, in Terminal:
-   ```sh
-   brew install whisper-cpp
-   ```
-   (No Homebrew yet? Install it from [brew.sh](https://brew.sh) first, or just
-   use Option A, which handles everything.)
-4. Open EchoType (see [Running EchoType](#running-echotype) below).
+3. **Right-click the app → Open → Open.** macOS asks once because EchoType is
+   distributed outside the App Store and isn't notarized; after the first open it
+   launches normally. (See [First launch & Gatekeeper](#1-launch-it) if the
+   dialog only offers *Done* / *Move to Trash*.)
+4. Grant two permissions when asked — see [Running EchoType](#running-echotype).
 
 ### Option C — build from source
 
 ```sh
 git clone https://github.com/madebyandrew/EchoType.git
 cd EchoType
-brew install whisper-cpp
+brew install whisper-cpp          # build machine only — gets bundled into the .app
 curl -L -o models/ggml-base.en.bin \
   https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
 ./build.sh
 open EchoType.app
 ```
 
-`build.sh` compiles `src/*.swift`, bundles the model, and code-signs the app
-(with your Apple Development / Developer ID certificate if you have one, ad-hoc
-otherwise).
+`build.sh` compiles `src/*.swift`, bundles the model, runs
+[`vendor-whisper.sh`](vendor-whisper.sh) to copy the whisper.cpp binaries + their
+dylibs into `EchoType.app/Contents/Resources/whisper/` (install names rewritten to
+`@rpath` so they're relocatable), and code-signs the bundle. Set `RELEASE=1` to
+force ad-hoc signing for a portable build; `./release.sh` does this and zips it.
 
 ---
 
@@ -84,11 +81,22 @@ otherwise).
 
 Open **EchoType** from Applications (or Spotlight, or `open -a EchoType`).
 
-- The **first launch from a manual download** may be blocked by Gatekeeper
-  ("Apple could not verify…"). Right-click the app → **Open** → **Open**, or go
-  to **System Settings → Privacy & Security** and click **Open Anyway**. You only
-  do this once. (The one-command installer downloads via `curl`, so it isn't
-  quarantined and this step doesn't apply.)
+- **First launch from a manual download** is blocked by Gatekeeper ("Apple could
+  not verify EchoType is free of malware…"). EchoType is a free open-source app
+  that isn't notarized by Apple, so:
+  - **First try:** right-click (or Control-click) the app in Finder → **Open** →
+    **Open**.
+  - **On macOS Sequoia (15)** the right-click dialog often only shows *Done* /
+    *Move to Trash*. Click **Done**, then open **System Settings → Privacy &
+    Security**, scroll to the bottom, and click **Open Anyway** next to
+    "EchoType was blocked". Enter your password, then **Open**.
+  - **Or, in Terminal**, clear the quarantine flag and just open it:
+    ```sh
+    xattr -dr com.apple.quarantine /Applications/EchoType.app
+    open /Applications/EchoType.app
+    ```
+  You only do this once. The [one-command installer](#option-a--one-command-recommended)
+  clears the flag for you, so it never shows this dialog.
 - EchoType is a **menu bar app** — it has no Dock icon. Look for the EchoType
   icon in your menu bar, near the clock.
 - The main window opens automatically the first time. Close it any time; the app
@@ -218,9 +226,9 @@ Open config file**).
 | Symptom | Fix |
 |---|---|
 | Menu bar icon has a **⚠︎**, nothing happens on the key | Accessibility not granted. System Settings → Privacy & Security → Accessibility → turn on EchoType. If it's already on, toggle it off/on, or run `tccutil reset Accessibility local.echotype.app` and re-add it. |
-| "EchoType can't be opened because Apple cannot check it…" | Right-click the app → Open → Open. Once only. |
+| "Apple could not verify EchoType is free of malware…" (only *Done* / *Move to Trash*) | Not notarized (free app). Click Done, then **System Settings → Privacy & Security → Open Anyway**. Or run `xattr -dr com.apple.quarantine /Applications/EchoType.app`. Once only. See [First launch & Gatekeeper](#1-launch-it). |
 | Recording works but no text appears | The target field must have keyboard focus. Some secure fields (passwords) reject synthetic input by design. Try **Settings → Insertion → Insert by pasting**. |
-| Transcription is slow or errors in **Settings → Engine** | `whisper-cpp` missing or outdated: `brew install whisper-cpp` or `brew upgrade whisper-cpp`. EchoType looks in `/opt/homebrew/bin` and `/usr/local/bin`. |
+| **Settings → Engine** shows an error | The bundled `whisper-server` failed to start. Quit and reopen EchoType. If it persists, the app still transcribes via the bundled `whisper-cli` (slightly slower cold start) — check Console for `EchoType: whisper` logs. |
 | Styles/rewrite do nothing | Local AI is off or Ollama isn't installed — `brew install ollama`, then check **Settings → Local AI → Status**. Plain dictation is unaffected. |
 | First dictation after a fresh install pauses a few seconds | One-time model load into RAM; subsequent dictations are instant. |
 

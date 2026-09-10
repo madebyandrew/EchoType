@@ -12,6 +12,9 @@ models/*.bin
 # Local assistant config
 .claude/
 
+# Generated knowledge-graph exports
+graphify-out/
+
 # Scratch audio
 *.wav
 *.aiff
